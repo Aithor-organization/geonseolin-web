@@ -34,6 +34,9 @@ export default function WorkerProfilePage() {
     { name: "", date: "", issuer: "" },
   ]);
   const [hourlyRate, setHourlyRate] = useState("");
+  const [careerCompany, setCareerCompany] = useState("");
+  const [careerPeriod, setCareerPeriod] = useState("");
+  const [careerDuty, setCareerDuty] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -66,6 +69,19 @@ export default function WorkerProfilePage() {
       location: selectedRegions[0] ?? "",
       available: true,
     });
+
+    // 경력 저장
+    if (careerCompany.trim()) {
+      await fetch("/api/workers/me/experiences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_name: careerCompany.trim(),
+          work_period: careerPeriod.trim() || null,
+          responsibility: careerDuty.trim() || null,
+        }),
+      });
+    }
 
     // 자격증 저장
     const validCerts = certs.filter((c) => c.name.trim());
@@ -131,9 +147,9 @@ export default function WorkerProfilePage() {
           <Card padding="lg">
             <h2 className="font-heading text-xl font-semibold mb-6">경력 사항</h2>
             <div className="flex flex-col gap-4">
-              <Input label="최근 회사/현장명" placeholder="예: 한양건설 강남 현장" />
-              <Input label="근무 기간" placeholder="예: 2023.01 - 2024.06" />
-              <Input label="담당 업무" placeholder="예: 배관 설치 및 유지보수" />
+              <Input label="최근 회사/현장명" placeholder="예: 한양건설 강남 현장" value={careerCompany} onChange={(e) => setCareerCompany(e.target.value)} />
+              <Input label="근무 기간" placeholder="예: 2023.01 - 2024.06" value={careerPeriod} onChange={(e) => setCareerPeriod(e.target.value)} />
+              <Input label="담당 업무" placeholder="예: 배관 설치 및 유지보수" value={careerDuty} onChange={(e) => setCareerDuty(e.target.value)} />
               <div>
                 <p className="text-sm font-medium text-dark mb-2">선호 근무 지역</p>
                 <FilterChips options={REGIONS} selected={selectedRegions} onChange={setSelectedRegions} />

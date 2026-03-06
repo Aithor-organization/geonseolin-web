@@ -58,7 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .eq("id", contract.id);
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "환불 처리에 실패했습니다";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

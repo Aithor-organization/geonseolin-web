@@ -5,7 +5,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useContracts } from "@/lib/hooks/use-contracts";
+import { useContracts, ContractRow } from "@/lib/hooks/use-contracts";
 import { formatCurrency } from "@/lib/utils";
 
 const statusMap: Record<string, { label: string; variant: "success" | "warning" | "terracotta" | "sage" }> = {
@@ -42,7 +42,7 @@ export default function ContractsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {contracts.map((c: any) => {
+            {contracts.map((c: ContractRow) => {
               const s = statusMap[c.status] ?? statusMap.pending;
               const other = profile?.role === "worker"
                 ? c.company_profiles?.profiles?.name ?? "기업"
