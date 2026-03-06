@@ -88,7 +88,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <Link href="/chat" className="flex-1">
             <Button variant="outline" fullWidth size="lg">채팅 문의</Button>
           </Link>
-          <Link href="/payment" className="flex-1">
+          <Link href={`/payment?jobId=${id}&title=${encodeURIComponent(job.title)}&salary=${encodeURIComponent(job.salary ?? '')}`} className="flex-1">
             <Button fullWidth size="lg">지원하기</Button>
           </Link>
         </div>

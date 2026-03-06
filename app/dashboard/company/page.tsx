@@ -55,7 +55,7 @@ export default function CompanyDashboardPage() {
         <Card className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading font-semibold text-dark">내 공고 현황</h2>
-            <button className="text-sm text-terracotta font-medium hover:underline cursor-pointer">공고 등록</button>
+            <Link href="/jobs/new" className="text-sm text-terracotta font-medium hover:underline cursor-pointer">공고 등록</Link>
           </div>
           <div className="space-y-3">
             {jobsLoading ? (

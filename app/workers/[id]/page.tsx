@@ -85,7 +85,9 @@ export default function WorkerDetailPage() {
                 <Link href={`/chat?to=${worker.id}`}>
                   <Button variant="outline" size="sm">💬 메시지</Button>
                 </Link>
-                <Button size="sm">제안하기</Button>
+                <Link href={`/contracts/new?workerId=${worker.id}`}>
+                  <Button size="sm">제안하기</Button>
+                </Link>
               </div>
             )}
           </div>

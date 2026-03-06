@@ -54,8 +54,8 @@ function ReviewContent({ params }: { params: Promise<{ id: string }> }) {
         if (data) {
           setRating(data.rating);
           if (data.categories) {
-            const cats = data.categories as unknown as { name: string; score: number }[];
-            setCategoryScores(CATEGORIES.map((c) => cats.find((cat) => cat.name === c)?.score ?? 0));
+            const cats = data.categories as unknown as { label: string; score: number }[];
+            setCategoryScores(CATEGORIES.map((c) => cats.find((cat) => cat.label === c)?.score ?? 0));
           }
           setComment(data.comment ?? "");
 
@@ -106,7 +106,7 @@ function ReviewContent({ params }: { params: Promise<{ id: string }> }) {
 
   const handleSubmit = async () => {
     setSaving(true);
-    const categories = CATEGORIES.map((name, i) => ({ name, score: categoryScores[i] }));
+    const categories = CATEGORIES.map((label, i) => ({ label, score: categoryScores[i] }));
 
     // worker_id와 company_id 결정: URL 파라미터 > 현재 유저 role 기반
     const resolvedWorkerId = workerIdParam || (profile?.role === "worker" ? user?.id ?? "" : "");

@@ -32,7 +32,7 @@ export default function LoginPage() {
   // 데모 모드: 바로 접속
   const handleDemoLogin = async (role: "worker" | "company") => {
     setLoading(true);
-    const demoEmail = role === "worker" ? "demo.worker1@test.com" : "demo.company1@test.com";
+    const demoEmail = role === "worker" ? "worker1@demo.com" : "company1@demo.com";
     const result = await signIn(demoEmail, "demo1234");
     if (result.error) {
       setError(result.error);

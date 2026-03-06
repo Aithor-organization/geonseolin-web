@@ -31,7 +31,8 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string,
-    role: "worker" | "company"
+    role: "worker" | "company",
+    phone?: string
   ) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -114,12 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: "worker" | "company"
+    role: "worker" | "company",
+    phone?: string
   ) {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name, role }),
+      body: JSON.stringify({ email, password, name, role, phone, terms_agreed: true }),
     });
     if (!res.ok) {
       const data = await res.json();
