@@ -1,69 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
 interface Report {
   id: string;
   type: string;
-  targetName: string;
-  targetRole: string;
-  reporterName: string;
+  target_name: string;
+  target_role: string | null;
+  reporter_name: string;
   content: string;
-  date: string;
+  created_at: string;
   status: "pending" | "resolved" | "dismissed";
 }
 
-// 데모 신고 데이터
-const initialReports: Report[] = [
-  {
-    id: "r1",
-    type: "허위 프로필",
-    targetName: "테스트유저A",
-    targetRole: "worker",
-    reporterName: "한양건설",
-    content: "자격증 정보가 허위로 보입니다. 실제 해당 자격증을 보유하고 있지 않은 것으로 확인되었습니다.",
-    date: "2026-03-04",
-    status: "pending",
-  },
-  {
-    id: "r2",
-    type: "부적절한 공고",
-    targetName: "서울공사",
-    targetRole: "company",
-    reporterName: "김철수",
-    content: "최저임금 이하의 급여를 제시하는 공고입니다.",
-    date: "2026-03-03",
-    status: "pending",
-  },
-  {
-    id: "r3",
-    type: "직거래 유도",
-    targetName: "이영수",
-    targetRole: "worker",
-    reporterName: "테크파크건설",
-    content: "채팅에서 플랫폼 외부 직거래를 유도하는 메시지를 보냈습니다.",
-    date: "2026-03-01",
-    status: "resolved",
-  },
-  {
-    id: "r4",
-    type: "허위 리뷰",
-    targetName: "박지성",
-    targetRole: "worker",
-    reporterName: "삼성건설",
-    content: "실제 작업을 하지 않은 사람이 리뷰를 남겼습니다.",
-    date: "2026-02-28",
-    status: "dismissed",
-  },
-];
-
 const filterTabs = ["대기중", "처리완료", "전체"] as const;
+const statusParam: Record<string, string | undefined> = {
+  "대기중": "pending",
+  "처리완료": undefined, // resolved + dismissed 둘 다 포함 → 클라이언트 필터
+  "전체": undefined,
+};
 
 export default function AdminReportsPage() {
-  const [reports, setReports] = useState<Report[]>(initialReports);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<typeof filterTabs[number]>("대기중");
+
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activeFilter === "대기중") params.set("status", "pending");
+      const res = await fetch(`/api/admin/reports?${params}`);
+      const data = await res.json();
+      setReports(data.reports ?? []);
+    } catch {
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeFilter]);
+
+  useEffect(() => { fetchReports(); }, [fetchReports]);
 
   const filteredReports = reports.filter((r) => {
     if (activeFilter === "전체") return true;
@@ -71,10 +50,20 @@ export default function AdminReportsPage() {
     return r.status === "resolved" || r.status === "dismissed";
   });
 
-  const handleAction = (id: string, action: "resolved" | "dismissed") => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: action } : r))
-    );
+  const handleAction = async (id: string, action: "resolved" | "dismissed") => {
+    try {
+      await fetch("/api/admin/reports", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: id, status: action }),
+      });
+      // 낙관적 업데이트
+      setReports((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: action } : r))
+      );
+    } catch {
+      alert("처리 중 오류가 발생했습니다.");
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -92,6 +81,7 @@ export default function AdminReportsPage() {
   };
 
   const pendingCount = reports.filter((r) => r.status === "pending").length;
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("ko-KR");
 
   return (
     <div>
@@ -126,10 +116,16 @@ export default function AdminReportsPage() {
       </Card>
 
       <Card padding="sm">
-        {filteredReports.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-gray-400 animate-pulse">로딩 중...</div>
+        ) : filteredReports.length === 0 ? (
           <div className="py-16 text-center">
-            <span className="text-4xl mb-3 block">🎉</span>
-            <p className="text-gray-400">접수된 신고가 없습니다</p>
+            <span className="text-4xl mb-3 block">
+              {activeFilter === "대기중" ? "🎉" : "📋"}
+            </span>
+            <p className="text-gray-400">
+              {activeFilter === "대기중" ? "대기 중인 신고가 없습니다" : "접수된 신고가 없습니다"}
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -152,10 +148,10 @@ export default function AdminReportsPage() {
                       {report.type}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-medium text-dark">{report.targetName}</td>
-                  <td className="py-3 px-4 text-gray-500">{report.reporterName}</td>
+                  <td className="py-3 px-4 font-medium text-dark">{report.target_name}</td>
+                  <td className="py-3 px-4 text-gray-500">{report.reporter_name}</td>
                   <td className="py-3 px-4 text-gray-400 max-w-[200px] truncate">{report.content}</td>
-                  <td className="py-3 px-4 text-gray-400">{report.date}</td>
+                  <td className="py-3 px-4 text-gray-400">{formatDate(report.created_at)}</td>
                   <td className="py-3 px-4">{statusBadge(report.status)}</td>
                   <td className="py-3 px-4">
                     {report.status === "pending" && (
