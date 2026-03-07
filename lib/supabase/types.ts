@@ -179,6 +179,8 @@ export interface Database {
           worker_id: string;
           status: "pending" | "accepted" | "rejected";
           message: string | null;
+          is_auto_applied: boolean;
+          auto_apply_log_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -229,6 +231,9 @@ export interface Database {
           room_id: string;
           sender_id: string;
           text: string;
+          is_ai_response: boolean;
+          ai_confidence: number | null;
+          escalated: boolean;
           created_at: string;
         };
         Insert: {
@@ -236,10 +241,16 @@ export interface Database {
           room_id: string;
           sender_id: string;
           text: string;
+          is_ai_response?: boolean;
+          ai_confidence?: number | null;
+          escalated?: boolean;
           created_at?: string;
         };
         Update: {
           text?: string;
+          is_ai_response?: boolean;
+          ai_confidence?: number | null;
+          escalated?: boolean;
         };
         Relationships: [];
       };
@@ -442,11 +453,213 @@ export interface Database {
         };
         Relationships: [];
       };
+      auto_apply_settings: {
+        Row: {
+          worker_id: string;
+          enabled: boolean;
+          max_daily_applications: number;
+          apply_time: string;
+          preferred_locations: string[];
+          min_daily_rate: number;
+          job_types: string[];
+          exclude_keywords: string[];
+          templates: Json;
+          active_template_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          worker_id: string;
+          enabled?: boolean;
+          max_daily_applications?: number;
+          apply_time?: string;
+          preferred_locations?: string[];
+          min_daily_rate?: number;
+          job_types?: string[];
+          exclude_keywords?: string[];
+          templates?: Json;
+          active_template_id?: string | null;
+        };
+        Update: {
+          enabled?: boolean;
+          max_daily_applications?: number;
+          apply_time?: string;
+          preferred_locations?: string[];
+          min_daily_rate?: number;
+          job_types?: string[];
+          exclude_keywords?: string[];
+          templates?: Json;
+          active_template_id?: string | null;
+        };
+        Relationships: [];
+      };
+      auto_apply_logs: {
+        Row: {
+          id: string;
+          worker_id: string;
+          job_id: string;
+          application_id: string | null;
+          match_score: number;
+          match_reasons: string[];
+          generated_message: string | null;
+          status: string;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          job_id: string;
+          application_id?: string | null;
+          match_score: number;
+          match_reasons?: string[];
+          generated_message?: string | null;
+          status?: string;
+          error_message?: string | null;
+        };
+        Update: {
+          application_id?: string | null;
+          status?: string;
+          error_message?: string | null;
+        };
+        Relationships: [];
+      };
+      company_bot_settings: {
+        Row: {
+          company_id: string;
+          enabled: boolean;
+          schedule_mode: string;
+          custom_start_time: string | null;
+          custom_end_time: string | null;
+          tone: string;
+          escalation_keywords: string[];
+          notify_on_escalation: boolean;
+          greeting_message: string | null;
+          total_responses: number;
+          total_escalations: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          company_id: string;
+          enabled?: boolean;
+          schedule_mode?: string;
+          tone?: string;
+          escalation_keywords?: string[];
+          notify_on_escalation?: boolean;
+          greeting_message?: string | null;
+        };
+        Update: {
+          enabled?: boolean;
+          schedule_mode?: string;
+          custom_start_time?: string | null;
+          custom_end_time?: string | null;
+          tone?: string;
+          escalation_keywords?: string[];
+          notify_on_escalation?: boolean;
+          greeting_message?: string | null;
+          total_responses?: number;
+          total_escalations?: number;
+        };
+        Relationships: [];
+      };
+      company_bot_faq: {
+        Row: {
+          id: string;
+          company_id: string;
+          question: string;
+          answer: string;
+          category: string | null;
+          priority: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          question: string;
+          answer: string;
+          category?: string | null;
+          priority?: number;
+        };
+        Update: {
+          question?: string;
+          answer?: string;
+          category?: string | null;
+          priority?: number;
+        };
+        Relationships: [];
+      };
+      applicant_analysis: {
+        Row: {
+          id: string;
+          job_id: string;
+          application_id: string;
+          worker_id: string;
+          overall_score: number;
+          grade: string;
+          category_scores: Json;
+          summary: string;
+          strengths: string[];
+          weaknesses: string[];
+          recommendation: string | null;
+          analyzed_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          application_id: string;
+          worker_id: string;
+          overall_score: number;
+          grade: string;
+          category_scores?: Json;
+          summary: string;
+          strengths?: string[];
+          weaknesses?: string[];
+          recommendation?: string | null;
+        };
+        Update: {
+          overall_score?: number;
+          grade?: string;
+          category_scores?: Json;
+          summary?: string;
+          strengths?: string[];
+          weaknesses?: string[];
+          recommendation?: string | null;
+        };
+        Relationships: [];
+      };
+      notification_templates: {
+        Row: {
+          id: string;
+          type: string;
+          title: string;
+          body: string;
+          variables: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: string;
+          title: string;
+          body: string;
+          variables?: string[];
+        };
+        Update: {
+          title?: string;
+          body?: string;
+          variables?: string[];
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       increment_profile_views: {
         Args: { worker_uuid: string };
+        Returns: undefined;
+      };
+      increment_faq_use_count: {
+        Args: { faq_id: string };
         Returns: undefined;
       };
     };

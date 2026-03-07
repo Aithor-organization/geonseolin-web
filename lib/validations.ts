@@ -144,3 +144,51 @@ export const jobSearchSchema = paginationSchema.extend({
   search: z.string().optional(),
   status: z.enum(["active", "closed", "draft"]).optional(),
 });
+
+// AI 자동 지원 설정
+export const autoApplySettingsSchema = z.object({
+  enabled: z.boolean(),
+  max_daily_applications: z.number().int().min(1).max(10).default(3),
+  apply_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "HH:MM 형식"),
+  preferred_locations: z.array(z.string()).default([]),
+  min_daily_rate: z.number().int().min(0).default(0),
+  job_types: z.array(z.string()).default([]),
+  exclude_keywords: z.array(z.string()).default([]),
+  templates: z.array(z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(50),
+    content: z.string().min(20).max(1000),
+  })).max(5).default([]),
+  active_template_id: z.string().uuid().nullable().default(null),
+});
+
+// AI 기업 챗봇 설정
+export const companyBotSettingsSchema = z.object({
+  enabled: z.boolean(),
+  schedule_mode: z.enum(["always", "off_hours", "custom"]),
+  custom_start_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  custom_end_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  tone: z.enum(["formal", "polite", "concise"]).default("polite"),
+  escalation_keywords: z.array(z.string()).default([]),
+  notify_on_escalation: z.boolean().default(true),
+});
+
+// FAQ
+export const botFaqSchema = z.object({
+  question: z.string().min(5).max(200),
+  answer: z.string().min(5).max(500),
+  category: z.string().max(20).optional(),
+});
+
+// 지원자 확정/거절
+export const confirmApplicationSchema = z.object({
+  action: z.enum(["accept", "reject"]),
+  auto_reject_others: z.boolean().default(false),
+  create_contract_draft: z.boolean().default(false),
+  contract_data: z.object({
+    daily_rate: z.number().int().positive(),
+    work_days: z.number().int().positive(),
+    start_date: z.string().optional(),
+    end_date: z.string().optional(),
+  }).optional(),
+});

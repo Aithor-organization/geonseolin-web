@@ -64,6 +64,22 @@ export default function WorkerDashboardPage() {
         {/* 프로필 완성도 배너 */}
         {completion && <ProfileCompletionBanner completion={completion} />}
 
+        {/* AI 자동 지원 배너 */}
+        {stats.todayAutoApplied != null && stats.todayAutoApplied > 0 && (
+          <Link href="/settings/auto-apply" className="block mb-4">
+            <div className="flex items-center gap-3 p-3 bg-sage/10 rounded-xl">
+              <span className="text-xl">🤖</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-dark">
+                  오늘 AI 자동 지원 {stats.todayAutoApplied}건
+                </p>
+                <p className="text-xs text-gray-500">자동 지원 설정에서 확인하세요</p>
+              </div>
+              <span className="text-gray-400 text-sm">→</span>
+            </div>
+          </Link>
+        )}
+
         <div className="grid grid-cols-2 gap-3 mb-6">
           <StatCard icon="💰" label="이번 달 수입" value={formatCurrency(stats.thisMonth.earnings)} sub={`총 ${formatCurrency(stats.totalEarnings)}`} />
           <StatCard icon="🔨" label="완료한 작업" value={stats.completedJobs} sub={`이번 달 ${stats.thisMonth.jobs}건`} />

@@ -89,6 +89,7 @@ export function useWorkerStats() {
     completedJobs: 0,
     averageRating: 0,
     profileViews: 0,
+    todayAutoApplied: 0 as number | null,
     thisMonth: { earnings: 0, jobs: 0 },
   });
   const [loading, setLoading] = useState(true);
@@ -105,6 +106,7 @@ export function useWorkerStats() {
           completedJobs: data.completed_jobs ?? data.completedJobs ?? 0,
           averageRating: data.rating ?? data.averageRating ?? 0,
           profileViews: data.profile_views ?? data.profileViews ?? 0,
+          todayAutoApplied: data.today_auto_applied ?? 0,
           thisMonth: data.thisMonth ?? prev.thisMonth,
         }));
       }

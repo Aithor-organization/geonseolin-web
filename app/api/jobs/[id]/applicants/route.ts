@@ -68,6 +68,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     certMap[c.worker_id]!.push(c);
   });
 
+  // AI 분석 결과
+  const { data: analyses } = await supabase
+    .from("applicant_analysis")
+    .select("application_id, overall_score, grade, category_scores, summary, strengths, weaknesses, analyzed_at")
+    .eq("job_id", id);
+
+  const analysisMap = Object.fromEntries(
+    (analyses ?? []).map((a) => [a.application_id, a])
+  );
+
   const applicants = (applications ?? []).map((a) => {
     const prof = profileMap[a.worker_id] ?? {};
     const wp = workerMap[a.worker_id] ?? {};
@@ -76,6 +86,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       status: a.status,
       message: a.message,
       applied_at: a.created_at,
+      is_auto_applied: a.is_auto_applied ?? false,
       worker: {
         ...prof,
         ...wp,
@@ -83,6 +94,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         experiences: expMap[a.worker_id] ?? [],
         certificates: certMap[a.worker_id] ?? [],
       },
+      analysis: analysisMap[a.id] ?? null,
     };
   });
 

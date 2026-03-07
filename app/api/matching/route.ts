@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const { error, user, supabase } = await requireAuth();
   if (error) return error;
 
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
+  if (!process.env.OPENROUTER_API_KEY) {
     return NextResponse.json({ error: "AI 매칭 서비스가 설정되지 않았습니다" }, { status: 503 });
   }
 

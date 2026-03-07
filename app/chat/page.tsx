@@ -109,6 +109,8 @@ function ChatContent() {
                     text={msg.text}
                     time={new Date(msg.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
                     sender={msg.sender_id === user?.id ? "me" : "other"}
+                    isAiResponse={msg.is_ai_response}
+                    escalated={msg.escalated}
                   />
                 ))
               )}

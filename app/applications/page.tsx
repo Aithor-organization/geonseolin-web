@@ -60,7 +60,12 @@ export default function ApplicationsPage() {
                         <p className="text-xs text-gray-400 mt-1 line-clamp-1">{app.message}</p>
                       )}
                     </div>
-                    <Badge variant={s.variant}>{s.label}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      {app.is_auto_applied && (
+                        <span className="text-[10px] bg-sage/10 text-sage px-1.5 py-0.5 rounded-full font-medium">AI</span>
+                      )}
+                      <Badge variant={s.variant}>{s.label}</Badge>
+                    </div>
                   </div>
                 </Card>
               );

@@ -23,6 +23,9 @@ export interface MessageRow {
   sender_id: string;
   text: string;
   created_at: string;
+  is_ai_response?: boolean;
+  ai_confidence?: number;
+  escalated?: boolean;
 }
 
 export function useChatRooms() {

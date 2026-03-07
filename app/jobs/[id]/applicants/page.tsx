@@ -5,12 +5,26 @@ import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import ApplicantAnalysisCard from "@/components/features/ApplicantAnalysisCard";
+import ConfirmDialog from "@/components/features/ConfirmDialog";
+
+interface AnalysisData {
+  overall_score: number;
+  grade: string;
+  category_scores: Record<string, number>;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  analyzed_at: string;
+}
 
 interface Applicant {
   application_id: string;
   status: "pending" | "accepted" | "rejected";
   message: string | null;
   applied_at: string;
+  is_auto_applied?: boolean;
+  analysis?: AnalysisData | null;
   worker: {
     id: string;
     name?: string;
@@ -44,6 +58,9 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [chattingWith, setChattingWith] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [sortBy, setSortBy] = useState<"date" | "score">("date");
+  const [confirmTarget, setConfirmTarget] = useState<Applicant | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,6 +103,23 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
     setUpdating(null);
   };
 
+  const handleAnalyzeAll = async () => {
+    setAnalyzing(true);
+    try {
+      await fetch(`/api/jobs/${id}/applicants/analyze`, { method: "POST" });
+      await load();
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const sorted = [...applicants].sort((a, b) => {
+    if (sortBy === "score") {
+      return (b.analysis?.overall_score ?? -1) - (a.analysis?.overall_score ?? -1);
+    }
+    return new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime();
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -101,8 +135,23 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
           <span>←</span> 뒤로
         </button>
 
-        <h1 className="font-heading text-xl font-bold text-dark mb-1">지원자 관리</h1>
-        <p className="text-sm text-gray-500 mb-6">{jobTitle} · 총 {applicants.length}명 지원</p>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="font-heading text-xl font-bold text-dark">지원자 관리</h1>
+          <Button size="sm" onClick={handleAnalyzeAll} disabled={analyzing || applicants.length === 0}>
+            {analyzing ? "AI 분석 중..." : "AI 일괄 분석"}
+          </Button>
+        </div>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-sm text-gray-500">{jobTitle} · 총 {applicants.length}명 지원</p>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "date" | "score")}
+            className="text-xs border border-muted rounded-lg px-2 py-1 bg-white"
+          >
+            <option value="date">최신순</option>
+            <option value="score">AI 점수순</option>
+          </select>
+        </div>
 
         {applicants.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
@@ -111,7 +160,7 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {applicants.map((a) => {
+            {sorted.map((a) => {
               const s = statusMap[a.status] ?? statusMap.pending;
               const w = a.worker;
               const isExpanded = expandedId === a.application_id;
@@ -129,14 +178,20 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
                           👷
                         </div>
                         <div>
-                          <p className="font-semibold text-dark text-sm">{w.name ?? "기술자"}</p>
+                          <p className="font-semibold text-dark text-sm">
+                            {w.name ?? "기술자"}
+                            {a.is_auto_applied && <span className="ml-1 text-[10px] bg-sage/10 text-sage px-1 py-0.5 rounded-full">AI</span>}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {w.specialty ?? "미등록"} · 경력 {w.experience ?? 0}년
-                            {w.rating ? ` · ⭐ ${w.rating}` : ""}
+                            {w.rating ? ` · ${w.rating}` : ""}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {a.analysis && (
+                          <span className="text-xs font-bold text-sage">{a.analysis.overall_score}점 {a.analysis.grade}</span>
+                        )}
                         <Badge variant={s.variant}>{s.label}</Badge>
                         <span className="text-gray-400 text-xs">{isExpanded ? "▲" : "▼"}</span>
                       </div>
@@ -212,6 +267,19 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
                         </div>
                       )}
 
+                      {/* AI 분석 결과 */}
+                      {a.analysis && (
+                        <ApplicantAnalysisCard analysis={{
+                          application_id: a.application_id,
+                          match_score: a.analysis.overall_score,
+                          match_grade: a.analysis.grade,
+                          summary: a.analysis.summary,
+                          strengths: a.analysis.strengths,
+                          concerns: a.analysis.weaknesses,
+                          score_breakdown: (a.analysis.category_scores ?? {}) as unknown as Record<string, { score: number; max: number; detail: string }>,
+                        }} />
+                      )}
+
                       {/* 지원일시 */}
                       <p className="text-xs text-gray-400">
                         지원일: {new Date(a.applied_at).toLocaleDateString("ko-KR")}
@@ -225,7 +293,7 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
                           onClick={() => handleChat(w.id)}
                           disabled={chattingWith === w.id}
                         >
-                          {chattingWith === w.id ? "연결 중..." : "💬 채팅하기"}
+                          {chattingWith === w.id ? "연결 중..." : "채팅하기"}
                         </Button>
                         {a.status === "pending" && (
                           <>
@@ -239,7 +307,7 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
                             </Button>
                             <Button
                               size="sm"
-                              onClick={() => handleStatus(a.application_id, "accepted")}
+                              onClick={() => setConfirmTarget(a)}
                               disabled={updating === a.application_id}
                             >
                               수락
@@ -253,6 +321,24 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
               );
             })}
           </div>
+        )}
+        {/* 확정 다이얼로그 */}
+        {confirmTarget && (
+          <ConfirmDialog
+            workerName={confirmTarget.worker.name ?? "기술자"}
+            action="accept"
+            onConfirm={async (data) => {
+              await fetch(`/api/jobs/${id}/applicants/${confirmTarget.application_id}/confirm`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+              });
+              setConfirmTarget(null);
+              load();
+            }}
+            onCancel={() => setConfirmTarget(null)}
+            loading={updating === confirmTarget.application_id}
+          />
         )}
       </div>
     </div>

@@ -1,0 +1,4 @@
+ALTER TABLE public.messages
+  ADD COLUMN IF NOT EXISTS is_ai_response BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS ai_confidence NUMERIC(3,2),
+  ADD COLUMN IF NOT EXISTS escalated BOOLEAN DEFAULT false;

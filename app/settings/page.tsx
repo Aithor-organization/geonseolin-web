@@ -58,6 +58,31 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        {/* AI 기능 설정 */}
+        <Card className="mb-4">
+          <h2 className="font-heading font-semibold text-dark mb-4">AI 기능</h2>
+          <div className="space-y-3">
+            {profile?.role === "worker" && (
+              <Link href="/settings/auto-apply" className="flex items-center justify-between py-2 group">
+                <div>
+                  <p className="text-sm font-medium text-dark group-hover:text-sage transition-colors">AI 자동 지원</p>
+                  <p className="text-xs text-gray-500">AI가 맞춤 공고에 자동으로 지원합니다</p>
+                </div>
+                <span className="text-gray-400 text-sm">→</span>
+              </Link>
+            )}
+            {profile?.role === "company" && (
+              <Link href="/settings/company-bot" className="flex items-center justify-between py-2 group">
+                <div>
+                  <p className="text-sm font-medium text-dark group-hover:text-sage transition-colors">AI 챗봇 관리</p>
+                  <p className="text-xs text-gray-500">기술자 문의에 AI가 자동 응답합니다</p>
+                </div>
+                <span className="text-gray-400 text-sm">→</span>
+              </Link>
+            )}
+          </div>
+        </Card>
+
         <Card className="mb-4">
           <h2 className="font-heading font-semibold text-dark mb-4">계정</h2>
           <div className="space-y-3">

@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getModel, parseAIJsonResponse } from "./shared";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
-const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
+const model = getModel();
 
 export interface WorkerForMatching {
   id: string;
@@ -72,8 +71,7 @@ ${jobs.map((j, i) => `[${i}] "${j.title}" - 위치: ${j.location ?? "미지정"}
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-    const jsonStr = text.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-    const matches: { index: number; score: number; reason: string }[] = JSON.parse(jsonStr);
+    const matches = parseAIJsonResponse<{ index: number; score: number; reason: string }[]>(text);
 
     return matches
       .filter((m) => m.index >= 0 && m.index < jobs.length && m.score >= 50)
@@ -124,8 +122,7 @@ ${workers.map((w, i) => `[${i}] ${w.name} - ${w.specialty ?? "미지정"}, 경�
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-    const jsonStr = text.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-    const matches: { index: number; score: number; reasons: string[] }[] = JSON.parse(jsonStr);
+    const matches = parseAIJsonResponse<{ index: number; score: number; reasons: string[] }[]>(text);
 
     return matches
       .filter((m) => m.index >= 0 && m.index < workers.length && m.score >= 50)

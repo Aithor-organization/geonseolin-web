@@ -9,6 +9,7 @@ export interface ApplicationRow {
   worker_id: string;
   status: "pending" | "accepted" | "rejected";
   message: string | null;
+  is_auto_applied?: boolean;
   created_at: string;
   jobs?: { title: string; location: string | null; company_id: string | null } | null;
   worker_profiles?: { id: string; specialty: string | null; profiles: { name: string } | null } | null;
