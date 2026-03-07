@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import WorkerCard from "@/components/features/WorkerCard";
 import FilterChips from "@/components/features/FilterChips";
 import Input from "@/components/ui/Input";
@@ -12,6 +13,7 @@ import { useWorkers, type WorkerRow, type WorkerSortBy } from "@/lib/hooks/use-w
 import { useJobs } from "@/lib/hooks/use-jobs";
 import { useWorkerMatching } from "@/lib/hooks/use-matching";
 import { useFavorites } from "@/lib/hooks/use-favorites";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SPECIALTIES = ["전체", "배관공", "전기기사", "인테리어", "철근공", "도장공", "목수"];
 const REGIONS = ["전체", "서울", "경기", "인천"];
@@ -37,6 +39,8 @@ function toWorkerCardData(w: WorkerRow) {
 }
 
 export default function SearchPage() {
+  const router = useRouter();
+  const { profile } = useAuth();
   const [query, setQuery] = useState("");
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(["전체"]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>(["전체"]);
@@ -47,6 +51,19 @@ export default function SearchPage() {
   const { jobs: myJobs, loading: jobsLoading } = useJobs({ limit: 10 });
   const { matches: workerMatches, loading: matchLoading, error: matchError, fetchMatches } = useWorkerMatching(selectedJobId);
   const { isWorkerFavorite, toggleWorker } = useFavorites();
+
+  // 인력 검색은 기업 전용 기능
+  if (profile && profile.role !== "company" && profile.role !== "admin") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-parchment">
+        <div className="text-center">
+          <span className="text-5xl block mb-3">🔒</span>
+          <p className="text-gray-500 mb-2">인력 검색은 기업 회원 전용 기능입니다</p>
+          <button onClick={() => router.push("/jobs")} className="text-sage hover:underline text-sm cursor-pointer">일자리 찾기로 이동</button>
+        </div>
+      </div>
+    );
+  }
 
   const specialty = selectedSpecialties.includes("전체") ? undefined : selectedSpecialties[0];
   const location = selectedRegions.includes("전체") ? undefined : selectedRegions[0];

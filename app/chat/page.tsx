@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import ChatBubble from "@/components/features/ChatBubble";
@@ -9,9 +10,26 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-500 animate-pulse">로딩 중...</p></div>}>
+      <ChatContent />
+    </Suspense>
+  );
+}
+
+function ChatContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const { rooms, loading: roomsLoading } = useChatRooms();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+
+  // URL에서 room 파라미터로 자동 선택
+  useEffect(() => {
+    const roomParam = searchParams.get("room");
+    if (roomParam && rooms.some((r) => r.id === roomParam)) {
+      setSelectedRoomId(roomParam);
+    }
+  }, [searchParams, rooms]);
 
   const activeRoomId = selectedRoomId ?? rooms[0]?.id ?? null;
   const { messages, sendMessage, loading: msgsLoading } = useChatMessages(activeRoomId);

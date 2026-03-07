@@ -47,6 +47,9 @@ const DEMO_COMPANIES: DemoCompany[] = [
   { email: "company2@demo.com", name: "테크파크건설", company_name: "테크파크건설", biz_number: "234-56-78901", ceo: "이테크", industry: "IT건설", employees: "80명", address: "경기 성남시 판교", description: "IT빌딩 전문 건설/관리" },
 ];
 
+// 관리자 데모 계정
+const DEMO_ADMIN = { email: "admin@demo.com", name: "관리자", password: "demo1234" };
+
 export async function POST() {
   const supabase = getAdminClient();
   const results: string[] = [];
@@ -128,7 +131,44 @@ export async function POST() {
     results.push(`${c.email}: 새 유저 생성 (${newUser.user.id})`);
   }
 
-  // 4. 데모 공고 생성 (기업 계정 ID로)
+  // 4. 관리자 데모 계정 생성
+  {
+    const { data: adminUser, error: adminErr } = await supabase.auth.admin.createUser({
+      email: DEMO_ADMIN.email,
+      password: DEMO_ADMIN.password,
+      email_confirm: true,
+      user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
+    });
+
+    if (adminErr) {
+      if (adminErr.message.includes("already") || adminErr.message.includes("exists")) {
+        const { data: users } = await supabase.auth.admin.listUsers();
+        const existing = users?.users?.find((u) => u.email === DEMO_ADMIN.email);
+        if (existing) {
+          await supabase.auth.admin.updateUserById(existing.id, {
+            password: DEMO_ADMIN.password,
+            user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
+          });
+          // admin 프로필도 upsert (profiles.role은 'worker'로 저장, user_metadata로 admin 판별)
+          await supabase.from("profiles").upsert(
+            { id: existing.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
+            { onConflict: "id" }
+          );
+          results.push(`${DEMO_ADMIN.email}: 기존 관리자 업데이트 (${existing.id})`);
+        }
+      } else {
+        results.push(`${DEMO_ADMIN.email}: 생성 실패 - ${adminErr.message}`);
+      }
+    } else if (adminUser) {
+      await supabase.from("profiles").upsert(
+        { id: adminUser.user.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
+        { onConflict: "id" }
+      );
+      results.push(`${DEMO_ADMIN.email}: 관리자 생성 (${adminUser.user.id})`);
+    }
+  }
+
+  // 5. 데모 공고 생성 (기업 계정 ID로)
   const { data: company1Profile } = await supabase
     .from("profiles")
     .select("id")

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import StatCard from "@/components/features/StatCard";
 import JobCard from "@/components/features/JobCard";
+import ProfileCompletionBanner from "@/components/features/ProfileCompletionBanner";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkerStats } from "@/lib/hooks/use-profile";
+import { useProfileCompletion } from "@/lib/hooks/use-profile-completion";
 import { useJobs, type JobRow } from "@/lib/hooks/use-jobs";
 import { useContracts } from "@/lib/hooks/use-contracts";
 import { useJobMatching } from "@/lib/hooks/use-matching";
@@ -33,6 +35,7 @@ function toJobCardData(j: JobRow) {
 export default function WorkerDashboardPage() {
   const { profile, loading: authLoading } = useAuth();
   const { stats, loading: statsLoading } = useWorkerStats();
+  const { completion } = useProfileCompletion();
   const { jobs, loading: jobsLoading } = useJobs({ limit: 3 });
   const { contracts: activeContracts, loading: contractsLoading } = useContracts("active");
   const { matches: aiMatches, loading: matchLoading, error: matchError, fetchMatches } = useJobMatching();
@@ -57,6 +60,9 @@ export default function WorkerDashboardPage() {
             <p className="text-sm text-gray-500">오늘도 좋은 하루 되세요</p>
           </div>
         </div>
+
+        {/* 프로필 완성도 배너 */}
+        {completion && <ProfileCompletionBanner completion={completion} />}
 
         <div className="grid grid-cols-2 gap-3 mb-6">
           <StatCard icon="💰" label="이번 달 수입" value={formatCurrency(stats.thisMonth.earnings)} sub={`총 ${formatCurrency(stats.totalEarnings)}`} />

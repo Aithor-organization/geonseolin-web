@@ -31,10 +31,10 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string,
-    role: "worker" | "company",
-    phone?: string
+    phone?: string,
   ) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,13 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: "worker" | "company",
-    phone?: string
+    phone?: string,
   ) {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name, role, phone, terms_agreed: true }),
+      body: JSON.stringify({ email, password, name, phone, terms_agreed: true }),
     });
     if (!res.ok) {
       const data = await res.json();
@@ -137,9 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   }
 
+  async function refreshProfile() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await fetchProfile(session.user.id);
+    }
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signIn, signInWithOAuth, signUp, signOut }}
+      value={{ user, profile, loading, signIn, signInWithOAuth, signUp, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

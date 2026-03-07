@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
   const { settings, updateSettings: update, loading } = useSettings();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const profileHref = profile?.role === "company" ? "/profile/company" : "/profile/worker";
 
   if (loading) {
@@ -68,8 +70,24 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-3">
           <Button variant="outline" fullWidth onClick={() => signOut()}>로그아웃</Button>
-          <Button variant="danger" fullWidth>회원 탈퇴</Button>
+          <Button variant="danger" fullWidth onClick={() => setShowDeleteConfirm(true)}>회원 탈퇴</Button>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-5">
+            <Card className="w-full max-w-sm">
+              <h3 className="font-heading font-semibold text-dark text-center mb-2">정말 탈퇴하시겠습니까?</h3>
+              <p className="text-sm text-gray-500 text-center mb-5">탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.</p>
+              <div className="flex gap-3">
+                <Button variant="outline" fullWidth onClick={() => setShowDeleteConfirm(false)}>취소</Button>
+                <Button variant="danger" fullWidth onClick={async () => {
+                  await fetch("/api/auth/delete-account", { method: "DELETE" });
+                  signOut();
+                }}>탈퇴하기</Button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

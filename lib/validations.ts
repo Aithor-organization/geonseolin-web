@@ -6,8 +6,16 @@ export const signupSchema = z.object({
   password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"),
   name: z.string().min(2, "이름은 2자 이상이어야 합니다"),
   phone: z.string().optional(),
-  role: z.enum(["worker", "company"]),
   terms_agreed: z.boolean().refine((v) => v === true, "약관에 동의해야 합니다"),
+});
+
+// 기업 등록 신청
+export const companyRegisterSchema = z.object({
+  company_name: z.string().min(1, "기업명을 입력하세요"),
+  biz_number: z.string().regex(/^\d{3}-\d{2}-\d{5}$/, "사업자등록번호 형식: 000-00-00000"),
+  ceo: z.string().min(2, "대표자명은 2자 이상이어야 합니다"),
+  industry: z.string().optional(),
+  address: z.string().optional(),
 });
 
 export const loginSchema = z.object({
@@ -70,15 +78,17 @@ export const applicationSchema = z.object({
   message: z.string().max(500).optional(),
 });
 
-// 리뷰
+// 리뷰 (양방향: 기업→기술자 / 기술자→기업)
 export const reviewSchema = z.object({
   worker_id: z.string().uuid(),
+  company_id: z.string().uuid().optional(),
   contract_id: z.string().uuid().optional(),
+  review_type: z.enum(["company_to_worker", "worker_to_company"]),
   rating: z.number().int().min(1).max(5),
   categories: z
     .array(z.object({ label: z.string(), score: z.number().int().min(1).max(5) }))
     .optional(),
-  comment: z.string().max(500).optional(),
+  comment: z.string().min(20, "리뷰는 20자 이상 작성해야 합니다").max(500),
 });
 
 // 메시지

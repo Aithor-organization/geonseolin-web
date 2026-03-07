@@ -66,8 +66,9 @@ export function useWorkerDetail(workerId: string) {
 
       const { data: r } = await supabase
         .from("reviews")
-        .select("id, rating, categories, comment, created_at, company_profiles(company_name, profiles(name, avatar_url))")
+        .select("id, rating, categories, comment, created_at, review_type, company_profiles(company_name, profiles(name, avatar_url))")
         .eq("worker_id", workerId)
+        .eq("review_type", "company_to_worker")
         .order("created_at", { ascending: false })
         .limit(10);
 

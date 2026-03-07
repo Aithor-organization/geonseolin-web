@@ -6,15 +6,11 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-
-type UserType = "worker" | "company";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signUp, signInWithOAuth } = useAuth();
-  const [userType, setUserType] = useState<UserType>("worker");
+  const { signUp, signInWithOAuth, refreshProfile } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,13 +23,17 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    const result = await signUp(email, password, name, userType, phone || undefined);
+    const result = await signUp(email, password, name, phone || undefined);
+
     if (result.error) {
       setError(result.error);
       setLoading(false);
-    } else {
-      router.push("/verify-email");
+      return;
     }
+
+    // signIn 후 프로필이 아직 로드되지 않았을 수 있으므로 명시적으로 새로고침
+    await refreshProfile();
+    router.push("/verify-email");
   };
 
   return (
@@ -52,29 +52,17 @@ export default function SignupPage() {
             <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl">{error}</div>
           )}
 
-          <div className="flex bg-muted rounded-xl p-1 mb-6">
-            {(["worker", "company"] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setUserType(type)}
-                className={cn(
-                  "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer",
-                  userType === type
-                    ? type === "worker"
-                      ? "bg-sage text-white"
-                      : "bg-terracotta text-white"
-                    : "text-gray-500"
-                )}
-              >
-                {type === "worker" ? "👷 기술자" : "🏢 기업"}
-              </button>
-            ))}
+          <div className="mb-5 p-3 bg-blue-50 rounded-xl">
+            <p className="text-xs text-blue-700 leading-relaxed">
+              모든 신규 회원은 <strong>기술자</strong>로 가입됩니다.
+              기업 회원으로 전환하려면 가입 후 <strong>기업 등록 신청</strong>을 진행하세요.
+            </p>
           </div>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <Input
-              label={userType === "worker" ? "이름" : "기업명"}
-              placeholder={userType === "worker" ? "홍길동" : "OO건설"}
+              label="이름"
+              placeholder="홍길동"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -111,7 +99,7 @@ export default function SignupPage() {
             <Button
               fullWidth
               size="lg"
-              variant={userType === "worker" ? "primary" : "secondary"}
+              variant="primary"
               type="submit"
               disabled={loading}
             >

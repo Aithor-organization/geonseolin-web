@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -9,7 +8,6 @@ import Card from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { signIn, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,19 +25,6 @@ export default function LoginPage() {
     }
     // 성공 시 AuthContext의 onAuthStateChange가 프로필을 로드하고
     // middleware가 적절한 대시보드로 리다이렉트
-  };
-
-  // 데모 모드: 바로 접속
-  const handleDemoLogin = async (role: "worker" | "company") => {
-    setLoading(true);
-    const demoEmail = role === "worker" ? "worker1@demo.com" : "company1@demo.com";
-    const result = await signIn(demoEmail, "demo1234");
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
-    } else {
-      router.push(role === "company" ? "/dashboard/company" : "/dashboard/worker");
-    }
   };
 
   return (
@@ -97,38 +82,6 @@ export default function LoginPage() {
             <Button fullWidth size="lg" type="submit" disabled={loading}>
               {loading ? "로그인 중..." : "이메일로 로그인"}
             </Button>
-
-            <div className="flex flex-col gap-3">
-              <Button fullWidth size="lg" variant="outline" onClick={() => handleDemoLogin("worker")} disabled={loading}>
-                <span className="flex items-center justify-center gap-2">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-                    <path d="M5 10c0-3.314 2.686-6 6-6h2c3.314 0 6 2.686 6 6v1H5v-1z" fill="#F59E0B" />
-                    <path d="M3 11h18L20 12H4l-1-1z" fill="#F59E0B" />
-                    <path d="M8 12v2a4 4 0 008 0v-2" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M12 16v3" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M6 22c0-2.5 2-4 6-4s6 1.5 6 4" fill="currentColor" />
-                  </svg>
-                  데모: 기술자로 접속
-                </span>
-              </Button>
-              <Button fullWidth size="lg" variant="outline" onClick={() => handleDemoLogin("company")} disabled={loading}>
-                <span className="flex items-center justify-center gap-2">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-                    <path d="M4 21V5a2 2 0 012-2h12a2 2 0 012 2v16M4 21h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M10 21v-4a2 2 0 014 0v4" stroke="currentColor" strokeWidth="1.5" />
-                    <rect x="8" y="7" width="2" height="2" fill="#F59E0B" />
-                    <rect x="14" y="7" width="2" height="2" fill="#F59E0B" />
-                    <rect x="8" y="11" width="2" height="2" fill="#F59E0B" />
-                    <rect x="14" y="11" width="2" height="2" fill="#F59E0B" />
-                  </svg>
-                  데모: 기업으로 접속
-                </span>
-              </Button>
-            </div>
-
-            <p className="text-xs text-center text-gray-400 mt-1">
-              데모 계정으로 바로 체험할 수 있습니다
-            </p>
           </form>
 
           <div className="relative my-6">

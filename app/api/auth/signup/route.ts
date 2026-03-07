@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { email, password, name, phone, role, terms_agreed } = parsed.data;
+  const { email, password, name, phone, terms_agreed } = parsed.data;
   const supabase = await getSupabaseServerClient();
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -23,20 +23,16 @@ export async function POST(req: NextRequest) {
 
   const userId = authData.user.id;
 
+  // 모든 가입자는 기술자(worker)로 생성
   const { error: profileError } = await supabase
     .from("profiles")
-    .insert({ id: userId, role, name, email, phone: phone ?? null, terms_agreed });
+    .insert({ id: userId, role: "worker", name, email, phone: phone ?? null, terms_agreed });
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  // role별 프로필 테이블 초기화
-  if (role === "worker") {
-    await supabase.from("worker_profiles").insert({ id: userId });
-  } else {
-    await supabase.from("company_profiles").insert({ id: userId });
-  }
+  await supabase.from("worker_profiles").insert({ id: userId });
 
   return NextResponse.json({ user: authData.user, session: authData.session });
 }

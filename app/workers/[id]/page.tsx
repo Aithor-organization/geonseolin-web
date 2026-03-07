@@ -66,7 +66,7 @@ export default function WorkerDetailPage() {
               <div className="flex items-center gap-2 mt-1">
                 <StarRating rating={Math.round(worker.rating)} size="sm" />
                 <span className="text-sm text-gray-500">
-                  {worker.rating.toFixed(1)} ({worker.review_count}개 리뷰)
+                  {worker.rating.toFixed(1)}/5 ({worker.review_count}명)
                 </span>
               </div>
               <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -134,9 +134,10 @@ export default function WorkerDetailPage() {
 
         {/* 리뷰 */}
         <Card>
-          <h2 className="font-heading font-semibold text-dark mb-3">
-            리뷰 ({worker.review_count})
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading font-semibold text-dark">리뷰</h2>
+            <span className="text-sm text-gray-500">{worker.rating.toFixed(1)}/5 ({worker.review_count}명)</span>
+          </div>
           {reviews.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">아직 리뷰가 없습니다</p>
           ) : (

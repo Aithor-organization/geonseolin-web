@@ -21,6 +21,14 @@ const companyTabs = [
   { href: "/settings", label: "내정보", icon: "👤" },
 ];
 
+const adminTabs = [
+  { href: "/admin", label: "대시보드", icon: "🛡️" },
+  { href: "/admin/users", label: "회원", icon: "👥" },
+  { href: "/admin/company-approvals", label: "기업승인", icon: "🏢" },
+  { href: "/admin/jobs", label: "공고", icon: "📋" },
+  { href: "/admin/settings", label: "설정", icon: "⚙️" },
+];
+
 export default function BottomTabBar() {
   const pathname = usePathname();
   const { profile, loading } = useAuth();
@@ -29,7 +37,7 @@ export default function BottomTabBar() {
   if (isAuthPage || loading) return null;
 
   const role = profile?.role ?? "worker";
-  const tabs = role === "company" ? companyTabs : workerTabs;
+  const tabs = role === "admin" ? adminTabs : role === "company" ? companyTabs : workerTabs;
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-16 bg-white border-t border-muted">

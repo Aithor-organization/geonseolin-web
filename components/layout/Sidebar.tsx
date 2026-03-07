@@ -12,6 +12,7 @@ const workerNav = [
   { href: "/favorites", label: "즐겨찾기", icon: "❤️" },
   { href: "/chat", label: "메시지", icon: "💬" },
   { href: "/profile/worker", label: "내 프로필", icon: "👷" },
+  { href: "/company-register", label: "기업 등록", icon: "🏢" },
 ];
 
 const companyNav = [
@@ -23,6 +24,16 @@ const companyNav = [
   { href: "/profile/company", label: "기업 프로필", icon: "🏢" },
 ];
 
+const adminNav = [
+  { href: "/admin", label: "관리자 대시보드", icon: "🛡️" },
+  { href: "/admin/users", label: "회원 관리", icon: "👥" },
+  { href: "/admin/company-approvals", label: "기업 승인", icon: "🏢" },
+  { href: "/admin/jobs", label: "공고 관리", icon: "📋" },
+  { href: "/admin/reports", label: "신고 관리", icon: "🚨" },
+  { href: "/admin/settings", label: "플랫폼 설정", icon: "⚙️" },
+  { href: "/chat", label: "메시지", icon: "💬" },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { profile, loading, signOut } = useAuth();
@@ -31,13 +42,13 @@ export default function Sidebar() {
   if (isAuthPage || loading) return null;
 
   const role = profile?.role ?? "worker";
-  const navItems = role === "company" ? companyNav : workerNav;
-  const profileLabel = profile?.name ?? (role === "company" ? "기업" : "기술자");
-  const profileIcon = role === "company" ? "🏢" : "👷";
+  const navItems = role === "admin" ? adminNav : role === "company" ? companyNav : workerNav;
+  const profileLabel = profile?.name ?? (role === "admin" ? "관리자" : role === "company" ? "기업" : "기술자");
+  const profileIcon = role === "admin" ? "🛡️" : role === "company" ? "🏢" : "👷";
 
   return (
     <aside className="hidden lg:flex flex-col w-60 h-screen sticky top-0 bg-white border-r border-muted shrink-0 overflow-y-auto">
-      <Link href={role === "company" ? "/dashboard/company" : "/dashboard/worker"} className="flex items-center gap-2 px-5 py-5 border-b border-muted">
+      <Link href={role === "admin" ? "/admin" : role === "company" ? "/dashboard/company" : "/dashboard/worker"} className="flex items-center gap-2 px-5 py-5 border-b border-muted">
         <span className="text-2xl">🏗️</span>
         <span className="font-heading text-xl font-bold text-sage-dark">건설人</span>
       </Link>

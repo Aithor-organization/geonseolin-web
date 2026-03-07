@@ -8,6 +8,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/utils";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,15 +16,32 @@ export default function ContractDetailPage() {
   const [contract, setContract] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
     async function load() {
       const res = await fetch(`/api/contracts/${id}`);
-      if (res.ok) setContract(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setContract(data);
+
+        // 이미 리뷰 작성했는지 확인
+        if (data.status === "completed" && profile?.id) {
+          const supabase = getSupabaseBrowserClient();
+          const reviewType = profile.role === "company" ? "company_to_worker" : "worker_to_company";
+          const { data: existing } = await supabase
+            .from("reviews")
+            .select("id")
+            .eq("contract_id", id)
+            .eq("review_type", reviewType)
+            .maybeSingle();
+          setHasReviewed(!!existing);
+        }
+      }
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, profile?.id, profile?.role]);
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -139,6 +157,39 @@ export default function ContractDetailPage() {
             )}
             {myConfirmed && !otherConfirmed && (
               <p className="text-sm text-gray-500 text-center">상대방의 확인을 기다리고 있습니다</p>
+            )}
+          </Card>
+        )}
+
+        {/* 계약 완료 → 리뷰 작성 */}
+        {contract.status === "completed" && (
+          <Card className="mb-4">
+            <h3 className="font-semibold text-dark mb-3">리뷰 작성</h3>
+            {hasReviewed ? (
+              <p className="text-sm text-gray-500 text-center py-2">이미 리뷰를 작성했습니다 ✅</p>
+            ) : isWorker ? (
+              <>
+                <p className="text-sm text-gray-500 mb-3">
+                  {contract.company_confirmed
+                    ? "기업이 작업 완료를 확인했습니다. 기업에 대한 리뷰를 작성해보세요."
+                    : "기업의 작업 완료 확인 후 리뷰를 작성할 수 있습니다."
+                  }
+                </p>
+                {contract.company_confirmed && (
+                  <Link href={`/review/new?type=worker_to_company&workerId=${contract.worker_id}&companyId=${contract.company_id}&contractId=${id}`}>
+                    <Button fullWidth>🌟 기업 리뷰 작성</Button>
+                  </Link>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-3">
+                  작업이 완료되었습니다. 기술자에 대한 리뷰를 작성해보세요.
+                </p>
+                <Link href={`/review/new?type=company_to_worker&workerId=${contract.worker_id}&companyId=${contract.company_id}&contractId=${id}`}>
+                  <Button fullWidth>🌟 기술자 리뷰 작성</Button>
+                </Link>
+              </>
             )}
           </Card>
         )}

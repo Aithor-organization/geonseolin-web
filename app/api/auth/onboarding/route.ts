@@ -4,7 +4,6 @@ import { z } from "zod";
 
 const onboardingSchema = z.object({
   name: z.string().min(1, "이름을 입력하세요"),
-  role: z.enum(["worker", "company"]),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,14 +31,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { name, role } = parsed.data;
+  const { name } = parsed.data;
 
-  // profiles 생성
+  // OAuth 사용자는 항상 기술자(worker)로 생성
   const { error: profileError } = await supabase
     .from("profiles")
     .insert({
       id: user.id,
-      role,
+      role: "worker",
       name,
       email: user.email ?? "",
       avatar_url: user.user_metadata?.avatar_url ?? null,
@@ -49,12 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  // role별 프로필 테이블 초기화
-  if (role === "worker") {
-    await supabase.from("worker_profiles").insert({ id: user.id });
-  } else {
-    await supabase.from("company_profiles").insert({ id: user.id });
-  }
+  await supabase.from("worker_profiles").insert({ id: user.id });
 
-  return NextResponse.json({ success: true, role });
+  return NextResponse.json({ success: true, role: "worker" });
 }

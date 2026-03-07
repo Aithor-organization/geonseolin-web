@@ -2,14 +2,20 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { useJob } from "@/lib/hooks/use-jobs";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { job, loading } = useJob(id);
+  const { profile } = useAuth();
+  const applied = searchParams.get("applied") === "true";
 
   if (loading) {
     return (
@@ -25,15 +31,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         <div className="text-center">
           <span className="text-5xl block mb-3">📋</span>
           <p className="text-gray-500">공고를 찾을 수 없습니다</p>
-          <Link href="/search" className="text-sage hover:underline text-sm mt-2 inline-block">검색으로 돌아가기</Link>
+          <Link href="/jobs" className="text-sage hover:underline text-sm mt-2 inline-block">목록으로 돌아가기</Link>
         </div>
       </div>
     );
   }
 
+  const isCompany = profile?.role === "company";
+
   return (
     <div className="px-5 py-6 bg-parchment min-h-screen">
       <div className="max-w-2xl mx-auto">
+        <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-dark mb-4 flex items-center gap-1 cursor-pointer">
+          <span>←</span> 뒤로
+        </button>
+
         <div className="bg-sage/10 rounded-2xl p-6 mb-6">
           <div className="flex items-start gap-4">
             <span className="text-5xl">🏗️</span>
@@ -84,14 +96,33 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           </Card>
         )}
 
-        <div className="flex gap-3">
-          <Link href="/chat" className="flex-1">
-            <Button variant="outline" fullWidth size="lg">채팅 문의</Button>
-          </Link>
-          <Link href={`/payment?jobId=${id}&title=${encodeURIComponent(job.title)}&salary=${encodeURIComponent(job.salary ?? '')}`} className="flex-1">
-            <Button fullWidth size="lg">지원하기</Button>
-          </Link>
-        </div>
+        {applied && (
+          <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-xl">
+            지원이 완료되었습니다! <Link href="/applications" className="underline font-medium">지원 내역 확인</Link>
+          </div>
+        )}
+
+        {isCompany ? (
+          <div className="flex gap-3">
+            <Link href={`/jobs/${id}/applicants`} className="flex-1">
+              <Button variant="outline" fullWidth size="lg">지원자 보기</Button>
+            </Link>
+            <Link href={`/jobs/${id}/edit`} className="flex-1">
+              <Button fullWidth size="lg">공고 수정</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <Link href="/chat" className="flex-1">
+              <Button variant="outline" fullWidth size="lg">채팅 문의</Button>
+            </Link>
+            <Link href={`/jobs/${id}/apply`} className="flex-1">
+              <Button fullWidth size="lg" disabled={applied}>
+                {applied ? "지원 완료" : "지원하기"}
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
