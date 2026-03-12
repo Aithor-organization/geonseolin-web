@@ -17,10 +17,35 @@ export default function JobApplyPage({ params }: { params: Promise<{ id: string 
 
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
   const isProfileComplete = completion?.percentage === 100;
   const loading = jobLoading || completionLoading;
+
+  const handleAIGenerate = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/jobs/${id}/apply/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_context: message.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "AI 생성에 실패했습니다");
+      } else {
+        setMessage(data.message);
+      }
+    } catch {
+      setError("AI 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!message.trim()) {
@@ -130,9 +155,31 @@ export default function JobApplyPage({ params }: { params: Promise<{ id: string 
               <label className="block font-semibold text-dark text-sm mb-2">
                 자기소개 / 각오 <span className="text-terracotta">*</span>
               </label>
-              <p className="text-xs text-gray-500 mb-3">
-                이 공고에 지원하는 이유, 본인의 강점, 작업에 대한 각오 등을 작성해주세요.
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-gray-500">
+                  이 공고에 지원하는 이유, 본인의 강점, 작업에 대한 각오 등을 작성해주세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAIGenerate}
+                  disabled={generating}
+                  className="shrink-0 ml-3 px-3 py-1.5 text-xs font-medium text-white bg-sage rounded-lg hover:bg-sage/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  {generating ? (
+                    <>
+                      <span className="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full" />
+                      생성 중...
+                    </>
+                  ) : (
+                    "AI 생성"
+                  )}
+                </button>
+              </div>
+              {message.trim() && !generating && (
+                <p className="text-xs text-sage mb-2">
+                  입력한 내용이 있으면 AI가 참고하여 작성합니다
+                </p>
+              )}
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
