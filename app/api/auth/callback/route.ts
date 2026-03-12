@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // OAuth 신규 사용자: 프로필이 없으면 온보딩으로 리다이렉트
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
@@ -19,8 +18,24 @@ export async function GET(req: NextRequest) {
           .eq("id", user.id)
           .single();
 
+        // OAuth 신규 사용자: 프로필 자동 생성 (온보딩 없이)
+        let userRole = profile?.role;
         if (!profile) {
-          return NextResponse.redirect(`${origin}/onboarding`);
+          const oauthName =
+            user.user_metadata?.full_name ??
+            user.user_metadata?.name ??
+            user.email?.split("@")[0] ??
+            "사용자";
+
+          await supabase.from("profiles").insert({
+            id: user.id,
+            role: "worker",
+            name: oauthName,
+            email: user.email ?? "",
+            avatar_url: user.user_metadata?.avatar_url ?? null,
+          });
+          await supabase.from("worker_profiles").insert({ id: user.id });
+          userRole = "worker";
         }
 
         // role에 따라 적절한 대시보드로 리다이렉트
@@ -28,7 +43,7 @@ export async function GET(req: NextRequest) {
           const isAdmin = user.user_metadata?.role === "admin";
           const dashboardPath = isAdmin
             ? "/admin"
-            : profile.role === "company"
+            : userRole === "company"
               ? "/dashboard/company"
               : "/dashboard/worker";
           return NextResponse.redirect(`${origin}${dashboardPath}`);

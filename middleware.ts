@@ -1,10 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const publicRoutes = ["/login", "/signup", "/api/auth/callback", "/forgot-password", "/reset-password", "/verify-email", "/api/setup-demo", "/api/help-chat", "/support", "/terms", "/privacy", "/admin/login"];
+const publicRoutes = ["/login", "/signup", "/api/auth/callback", "/forgot-password", "/reset-password", "/verify-email", "/api/setup-demo", "/api/help-chat", "/support", "/terms", "/privacy", "/admin/login", "/onboarding"];
 const authRoutes = ["/login", "/signup"];
 // 인증은 필요하지만 프로필은 필요 없는 라우트
-const noProfileRoutes = ["/onboarding", "/admin/login"];
+const noProfileRoutes = ["/admin/login"];
 
 // 인메모리 Rate Limiting (IP 기반)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -131,9 +131,9 @@ export async function middleware(request: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  // 프로필 미완성 → 온보딩 강제
+  // 프로필 미존재 시 통과 (프로필 페이지에서 완성 유도)
   if (!userProfile) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+    return supabaseResponse;
   }
 
   // 관리자 라우트 - admin 역할 필요
