@@ -26,13 +26,13 @@ function checkRateLimit(ip: string, maxRequests: number): boolean {
   return true;
 }
 
-// 오래된 엔트리 정리 (메모리 누수 방지)
-setInterval(() => {
+// 오래된 엔트리 정리 (Rate Limit 체크 시 lazy cleanup)
+function cleanupRateLimitMap() {
   const now = Date.now();
   for (const [key, val] of rateLimitMap) {
     if (now > val.resetAt) rateLimitMap.delete(key);
   }
-}, 60_000);
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // API Rate Limiting
   if (pathname.startsWith("/api/")) {
+    cleanupRateLimitMap();
     const isAuthApi = pathname.startsWith("/api/auth/");
     const limit = isAuthApi ? RATE_LIMIT_MAX_AUTH : RATE_LIMIT_MAX_API;
     const key = isAuthApi ? `auth:${ip}` : `api:${ip}`;
@@ -52,11 +53,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // 환경변수 미설정 시 미들웨어 통과 (빌드 시 또는 설정 누락)
+  if (!url || !anonKey) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
