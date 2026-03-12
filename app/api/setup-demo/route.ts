@@ -234,20 +234,15 @@ export async function POST() {
 
   const now = new Date();
   const futureDate = (days: number) => new Date(now.getTime() + days * 86400000).toISOString();
-  const pastDate = (days: number) => new Date(now.getTime() - days * 86400000).toISOString();
 
   const demoJobs = [
     { company_id: companyIds["company1@demo.com"], title: "강남 오피스텔 배관 교체 공사", location: "서울 강남구", salary: "일 35만원", type: "단기 (2주)", description: "강남구 소재 오피스텔 30세대 노후 배관 전면 교체 작업입니다. PVC/동파이프 교체 경험 필수.", requirements: ["배관공 경력 5년 이상","PVC 배관 시공 경험","자격증 소지자 우대"], benefits: ["중식 제공","주차 가능","안전장비 지급"], applicant_count: 12, status: "active" as const, deadline: futureDate(14) },
     { company_id: companyIds["company1@demo.com"], title: "서초 아파트 난방 배관 공사", location: "서울 서초구", salary: "일 40만원", type: "단기 (1주)", description: "서초구 대단지 아파트 난방 배관 교체. 동절기 전 긴급 시공.", requirements: ["난방배관 경력 3년 이상","보일러 배관 경험","자격증 우대"], benefits: ["식대 제공","교통비 지원"], applicant_count: 5, status: "active" as const, deadline: futureDate(7) },
-    { company_id: companyIds["company1@demo.com"], title: "잠실 주상복합 배관 시공", location: "서울 송파구", salary: "일 38만원", type: "장기 (3개월)", description: "잠실 신축 주상복합 배관 시공 완료. 감사합니다.", requirements: ["배관공 경력 7년 이상","대형 현장 경험"], benefits: ["4대보험","중식제공","기숙사"], applicant_count: 28, status: "closed" as const, deadline: pastDate(10) },
     { company_id: companyIds["company2@demo.com"], title: "판교 IT센터 전기 공사", location: "경기 성남시", salary: "일 45만원", type: "장기 (2개월)", description: "판교 테크노밸리 IT센터 신축 전기 내선 공사. 스마트빌딩 자동화 설비 포함.", requirements: ["전기기사 자격증 필수","내선공사 5년 이상","스마트빌딩 경험 우대"], benefits: ["4대보험","중식 제공","통근버스","성과급"], applicant_count: 8, status: "active" as const, deadline: futureDate(21) },
-    { company_id: companyIds["company2@demo.com"], title: "분당 오피스 LED 조명 교체", location: "경기 성남시", salary: "일 32만원", type: "단기 (3일)", description: "분당 오피스빌딩 전층 LED 조명 교체 완료.", requirements: ["조명설치 경험 2년 이상"], benefits: ["식대 제공"], applicant_count: 15, status: "closed" as const, deadline: pastDate(5) },
     { company_id: companyIds["company3@demo.com"], title: "홍대 카페 인테리어 도장 공사", location: "서울 마포구", salary: "일 30만원", type: "단기 (5일)", description: "홍대 신규 카페 매장 내부 도장 공사. 친환경 도료 사용 필수. 디자인 시안에 맞춘 색상 시공.", requirements: ["도장 경력 3년 이상","실내 도장 경험","친환경 도료 경험 우대"], benefits: ["식대 제공","교통비 지원"], applicant_count: 3, status: "active" as const, deadline: futureDate(5) },
     { company_id: companyIds["company3@demo.com"], title: "강남 고급 주택 타일 시공", location: "서울 강남구", salary: "일 42만원", type: "단기 (1주)", description: "강남 단독주택 욕실 3곳 + 주방 타일 전면 시공. 대리석/포세린 타일.", requirements: ["타일 시공 5년 이상","대리석 경험 필수","포세린 타일 경험 우대"], benefits: ["재료비 별도","중식 제공","주차 가능"], applicant_count: 7, status: "active" as const, deadline: futureDate(10) },
-    { company_id: companyIds["company3@demo.com"], title: "성수동 사무실 리모델링", location: "서울 성동구", salary: "일 35만원", type: "단기 (2주)", description: "성수동 사무실 리모델링 공사 완료.", requirements: ["인테리어 경력 5년 이상","다기능 시공 가능자"], benefits: ["4대보험","식대"], applicant_count: 20, status: "closed" as const, deadline: pastDate(15) },
     { company_id: companyIds["company4@demo.com"], title: "화성 반도체 공장 용접 공사", location: "경기 화성시", salary: "일 55만원", type: "장기 (6개월)", description: "화성 반도체 공장 배관 용접 공사. TIG/특수강 용접 기술 필수. 클린룸 내 작업.", requirements: ["용접기능사 이상","TIG 용접 경력 10년 이상","클린룸 경험 우대","산업안전교육 이수"], benefits: ["4대보험","기숙사 제공","중식/석식","통근버스","연장근무수당"], applicant_count: 4, status: "active" as const, deadline: futureDate(30) },
     { company_id: companyIds["company4@demo.com"], title: "동탄 물류센터 철골 공사", location: "경기 화성시", salary: "일 48만원", type: "장기 (4개월)", description: "동탄 대형 물류센터 철골 구조물 시공. 고소 작업 포함.", requirements: ["철근공 경력 5년 이상","고소작업 경험","안전관리 자격증 우대"], benefits: ["4대보험","기숙사","중식 제공","안전장비 지급"], applicant_count: 9, status: "active" as const, deadline: futureDate(20) },
-    { company_id: companyIds["company4@demo.com"], title: "인천 공장 설비 배관 공사", location: "인천 남동구", salary: "일 50만원", type: "장기 (3개월)", description: "인천 산업단지 공장 설비 배관 공사 완료.", requirements: ["배관 용접 경력 8년 이상","산업설비 경험"], benefits: ["4대보험","기숙사","통근버스"], applicant_count: 32, status: "closed" as const, deadline: pastDate(20) },
   ].filter((j) => j.company_id);
 
   if (demoJobs.length > 0) {
@@ -255,7 +250,7 @@ export async function POST() {
     if (jobErr) {
       results.push(`공고 생성 실패: ${jobErr.message}`);
     } else {
-      results.push(`데모 공고 ${demoJobs.length}건 생성 완료 (공고중 ${demoJobs.filter(j => j.status === "active").length}건, 마감 ${demoJobs.filter(j => j.status === "closed").length}건)`);
+      results.push(`데모 공고 ${demoJobs.length}건 생성 완료`);
     }
   } else {
     results.push("기업 계정이 없어 공고를 생성하지 못했습니다");
