@@ -15,12 +15,23 @@ export async function GET(req: NextRequest) {
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("id")
+          .select("id, role")
           .eq("id", user.id)
           .single();
 
         if (!profile) {
           return NextResponse.redirect(`${origin}/onboarding`);
+        }
+
+        // role에 따라 적절한 대시보드로 리다이렉트
+        if (next === "/dashboard") {
+          const isAdmin = user.user_metadata?.role === "admin";
+          const dashboardPath = isAdmin
+            ? "/admin"
+            : profile.role === "company"
+              ? "/dashboard/company"
+              : "/dashboard/worker";
+          return NextResponse.redirect(`${origin}${dashboardPath}`);
         }
       }
       return NextResponse.redirect(`${origin}${next}`);
