@@ -80,8 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data) {
       // profiles.role CHECK 제약에 'admin'이 없으면 user_metadata로 판별
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const metaRole = authUser?.user_metadata?.role;
+      const metaRole = user?.user_metadata?.role;
       if (metaRole === "admin" && (data.role as string) !== "admin") {
         (data as Record<string, unknown>).role = "admin";
       }

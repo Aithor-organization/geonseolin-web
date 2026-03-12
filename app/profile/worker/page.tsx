@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
-import StepBar from "@/components/ui/StepBar";
 import FilterChips from "@/components/features/FilterChips";
-import ProfileCompletionBanner from "@/components/features/ProfileCompletionBanner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkerProfile } from "@/lib/hooks/use-profile";
-import { useProfileCompletion } from "@/lib/hooks/use-profile-completion";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const STEPS = ["개인정보", "기본정보", "경력", "자격증", "완료"];
 const SKILLS = [
   "배관", "전기", "인테리어", "철근", "도장", "목공",
   "타일", "방수", "용접", "조적", "미장", "지붕",
@@ -22,20 +18,21 @@ const REGIONS = [
   "대전", "울산", "세종", "강원", "충북", "충남",
 ];
 
+interface CompletionData {
+  percentage: number;
+  message: string;
+}
+
 export default function WorkerProfilePage() {
-  const { profile: authProfile, user } = useAuth();
-  const { profile, update, loading } = useWorkerProfile();
-  const { completion, refetch: refetchCompletion } = useProfileCompletion();
+  const { profile: authProfile, user, loading: authLoading } = useAuth();
 
-  const [step, setStep] = useState(0);
-
-  // Step 0: 개인정보
+  // 개인정보
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [address, setAddress] = useState("");
 
-  // Step 1: 기본정보
+  // 기본정보
   const [specialty, setSpecialty] = useState("");
   const [experience, setExperience] = useState("");
   const [bio, setBio] = useState("");
@@ -43,54 +40,73 @@ export default function WorkerProfilePage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [hourlyRate, setHourlyRate] = useState("");
 
-  // Step 2: 경력
+  // 경력
   const [careerCompany, setCareerCompany] = useState("");
   const [careerPeriod, setCareerPeriod] = useState("");
   const [careerDuty, setCareerDuty] = useState("");
 
-  // Step 3: 자격증
+  // 자격증
   const [certs, setCerts] = useState<{ name: string; date: string; issuer: string }[]>([
     { name: "", date: "", issuer: "" },
   ]);
 
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [completion, setCompletion] = useState<CompletionData | null>(null);
 
-  // 개인정보 로드 (profiles 테이블)
+  // 모든 데이터를 병렬로 한번에 로드
   useEffect(() => {
+    if (authLoading || !user) return;
+
+    async function loadAllData() {
+      const supabase = getSupabaseBrowserClient();
+
+      // 3개 요청을 병렬로 실행
+      const [workerRes, personalRes, completionRes] = await Promise.all([
+        supabase.from("worker_profiles").select("*").eq("id", user!.id).single(),
+        fetch("/api/workers/me/personal"),
+        fetch("/api/workers/me/completion"),
+      ]);
+
+      // worker_profiles 데이터 적용
+      if (workerRes.data) {
+        const wp = workerRes.data;
+        setSpecialty(wp.specialty ?? "");
+        setExperience(wp.experience?.toString() ?? "");
+        setBio(wp.bio ?? "");
+        setSelectedSkills(wp.skills ?? []);
+        setHourlyRate(wp.hourly_rate?.toString() ?? "");
+        if (wp.location) setSelectedRegions([wp.location]);
+      }
+
+      // personal 데이터 적용
+      if (personalRes.ok) {
+        const pd = await personalRes.json();
+        if (pd.birth_date) setBirthDate(pd.birth_date);
+        if (pd.address) setAddress(pd.address);
+        if (pd.phone) setPhone(pd.phone);
+      }
+
+      // completion 데이터 적용
+      if (completionRes.ok) {
+        const cd = await completionRes.json();
+        setCompletion(cd);
+      }
+
+      setDataLoading(false);
+    }
+
+    // authProfile에서 이름 로드
     if (authProfile) {
       setName(authProfile.name ?? "");
     }
     if (user) {
       setPhone(user.user_metadata?.phone ?? user.phone ?? "");
     }
-  }, [authProfile, user]);
 
-  // 개인정보 추가 필드 로드 (birth_date, address)
-  useEffect(() => {
-    async function loadPersonalInfo() {
-      if (!user) return;
-      const res = await fetch("/api/workers/me/personal");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.birth_date) setBirthDate(data.birth_date);
-        if (data.address) setAddress(data.address);
-        if (data.phone) setPhone(data.phone);
-      }
-    }
-    loadPersonalInfo();
-  }, [user]);
-
-  // worker_profiles 로드
-  useEffect(() => {
-    if (profile) {
-      setSpecialty(profile.specialty ?? "");
-      setExperience(profile.experience?.toString() ?? "");
-      setBio(profile.bio ?? "");
-      setSelectedSkills(profile.skills ?? []);
-      setHourlyRate(profile.hourly_rate?.toString() ?? "");
-      if (profile.location) setSelectedRegions([profile.location]);
-    }
-  }, [profile]);
+    loadAllData();
+  }, [authLoading, user, authProfile]);
 
   const addCert = () => setCerts([...certs, { name: "", date: "", issuer: "" }]);
   const updateCert = (i: number, field: string, value: string) => {
@@ -100,70 +116,82 @@ export default function WorkerProfilePage() {
   };
   const removeCert = (i: number) => setCerts(certs.filter((_, idx) => idx !== i));
 
-  const savePersonalInfo = async () => {
-    const res = await fetch("/api/workers/me/personal", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        phone: phone.trim() || null,
-        birth_date: birthDate || null,
-        address: address.trim() || null,
-      }),
-    });
-    return res.ok;
-  };
+  const refreshCompletion = useCallback(async () => {
+    const res = await fetch("/api/workers/me/completion");
+    if (res.ok) setCompletion(await res.json());
+  }, []);
 
-  const handleComplete = async () => {
+  const handleSave = async () => {
     setSaving(true);
+    setSaved(false);
+    const supabase = getSupabaseBrowserClient();
 
-    // 1. 개인정보 저장 (profiles 테이블)
-    await savePersonalInfo();
-
-    // 2. 기술 프로필 저장 (worker_profiles 테이블)
-    await update({
-      specialty,
-      experience: parseInt(experience) || 0,
-      bio,
-      skills: selectedSkills,
-      hourly_rate: parseInt(hourlyRate) || 0,
-      location: selectedRegions[0] ?? "",
-      available: true,
-    });
-
-    // 3. 경력 저장
-    if (careerCompany.trim()) {
-      await fetch("/api/workers/me/experiences", {
-        method: "POST",
+    // 모든 저장을 병렬로 실행
+    const savePromises: Promise<unknown>[] = [
+      // 1. 개인정보 저장
+      fetch("/api/workers/me/personal", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          company_name: careerCompany.trim(),
-          work_period: careerPeriod.trim() || null,
-          responsibility: careerDuty.trim() || null,
+          name: name.trim(),
+          phone: phone.trim() || null,
+          birth_date: birthDate || null,
+          address: address.trim() || null,
         }),
-      });
+      }),
+      // 2. 기술 프로필 저장
+      Promise.resolve(
+        supabase.from("worker_profiles").update({
+          specialty,
+          experience: parseInt(experience) || 0,
+          bio,
+          skills: selectedSkills,
+          hourly_rate: parseInt(hourlyRate) || 0,
+          location: selectedRegions[0] ?? "",
+          available: true,
+        }).eq("id", user!.id)
+      ),
+    ];
+
+    // 3. 경력 저장 (값이 있을 때만)
+    if (careerCompany.trim()) {
+      savePromises.push(
+        fetch("/api/workers/me/experiences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company_name: careerCompany.trim(),
+            work_period: careerPeriod.trim() || null,
+            responsibility: careerDuty.trim() || null,
+          }),
+        })
+      );
     }
 
-    // 4. 자격증 저장
+    // 4. 자격증 저장 (값이 있을 때만)
     const validCerts = certs.filter((c) => c.name.trim());
     for (const cert of validCerts) {
-      await fetch("/api/workers/me/certificates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: cert.name.trim(),
-          acquired_date: cert.date || null,
-          issuer: cert.issuer.trim() || null,
-        }),
-      });
+      savePromises.push(
+        fetch("/api/workers/me/certificates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: cert.name.trim(),
+            acquired_date: cert.date || null,
+            issuer: cert.issuer.trim() || null,
+          }),
+        })
+      );
     }
 
-    await refetchCompletion();
+    await Promise.all(savePromises);
+    await refreshCompletion();
     setSaving(false);
-    setStep(4);
+    setSaved(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p className="text-gray-500 animate-pulse">로딩 중...</p>
@@ -174,9 +202,15 @@ export default function WorkerProfilePage() {
   return (
     <div className="min-h-screen px-5 py-8 bg-parchment">
       <div className="max-w-lg mx-auto">
+        {/* 헤더 */}
+        <div className="mb-6">
+          <h1 className="font-heading text-2xl font-bold text-dark">내 프로필</h1>
+          <p className="text-sm text-gray-500 mt-1">프로필을 완성하면 더 많은 기회를 얻을 수 있어요</p>
+        </div>
+
         {/* 프로필 완성도 배너 */}
-        {completion && step < 4 && (
-          <div className="mb-4">
+        {completion && (
+          <div className="mb-6">
             <div className="p-4 bg-white rounded-2xl border border-sage/20 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-dark">프로필 완성도</span>
@@ -197,68 +231,41 @@ export default function WorkerProfilePage() {
           </div>
         )}
 
-        <div className="mb-8">
-          <StepBar steps={STEPS} current={step} />
-        </div>
-
-        {/* Step 0: 개인정보 (필수) */}
-        {step === 0 && (
-          <Card padding="lg">
-            <h2 className="font-heading text-xl font-semibold mb-2">개인정보</h2>
-            <p className="text-xs text-gray-500 mb-6">아래 정보는 프로필 완성에 필수입니다</p>
-            <div className="flex flex-col gap-4">
-              <Input
-                label="이름 *"
-                placeholder="홍길동"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Input
-                label="연락처 *"
-                type="tel"
-                placeholder="010-0000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-              <Input
-                label="생년월일 *"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-              />
-              <Input
-                label="주소 (선택)"
-                placeholder="예: 서울시 강남구"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-            <Button
-              fullWidth
-              size="lg"
-              className="mt-6"
-              onClick={() => setStep(1)}
-              disabled={!name.trim()}
-            >
-              다음
-            </Button>
-          </Card>
+        {/* 저장 완료 알림 */}
+        {saved && (
+          <div className="mb-6 p-4 bg-sage/10 border border-sage/30 rounded-2xl text-center">
+            <p className="text-sm font-semibold text-sage-dark">프로필이 저장되었습니다!</p>
+            <Link href="/dashboard/worker" className="text-xs text-sage hover:underline mt-1 inline-block">
+              대시보드로 이동
+            </Link>
+          </div>
         )}
 
-        {/* Step 1: 기본정보 */}
-        {step === 1 && (
+        <div className="flex flex-col gap-6">
+          {/* 개인정보 */}
           <Card padding="lg">
-            <h2 className="font-heading text-xl font-semibold mb-6">기본 정보</h2>
+            <h2 className="font-heading text-lg font-semibold mb-4">개인정보</h2>
+            <div className="flex flex-col gap-4">
+              <Input label="이름 *" placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input label="연락처" type="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input label="생년월일" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <Input label="주소" placeholder="예: 서울시 강남구" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+          </Card>
+
+          {/* 기본정보 */}
+          <Card padding="lg">
+            <h2 className="font-heading text-lg font-semibold mb-4">기본 정보</h2>
             <div className="flex flex-col gap-4">
               <Input label="전문 분야 *" placeholder="예: 배관공" value={specialty} onChange={(e) => setSpecialty(e.target.value)} />
-              <Input label="경력 (년) *" type="number" placeholder="예: 10" value={experience} onChange={(e) => setExperience(e.target.value)} />
-              <Input label="희망 일당 (원) *" type="number" placeholder="예: 350000" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
+              <Input label="경력 (년)" type="number" placeholder="예: 10" value={experience} onChange={(e) => setExperience(e.target.value)} />
+              <Input label="희망 일당 (원)" type="number" placeholder="예: 350000" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
               <div>
-                <p className="text-sm font-medium text-dark mb-2">보유 기술 *</p>
+                <p className="text-sm font-medium text-dark mb-2">보유 기술</p>
                 <FilterChips options={SKILLS} selected={selectedSkills} onChange={setSelectedSkills} />
               </div>
               <div>
-                <label className="text-sm font-medium text-dark block mb-1.5">자기소개 *</label>
+                <label className="text-sm font-medium text-dark block mb-1.5">자기소개</label>
                 <textarea
                   className="w-full px-4 py-3 rounded-[var(--radius-input)] border border-muted bg-white text-dark placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-sage/40 focus:border-sage transition-colors resize-none h-24"
                   placeholder="간단한 자기소개를 작성해주세요"
@@ -267,17 +274,11 @@ export default function WorkerProfilePage() {
                 />
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" fullWidth onClick={() => setStep(0)}>이전</Button>
-              <Button fullWidth onClick={() => setStep(2)}>다음</Button>
-            </div>
           </Card>
-        )}
 
-        {/* Step 2: 경력 */}
-        {step === 2 && (
+          {/* 경력 */}
           <Card padding="lg">
-            <h2 className="font-heading text-xl font-semibold mb-6">경력 사항</h2>
+            <h2 className="font-heading text-lg font-semibold mb-4">경력 사항</h2>
             <div className="flex flex-col gap-4">
               <Input label="최근 회사/현장명" placeholder="예: 한양건설 강남 현장" value={careerCompany} onChange={(e) => setCareerCompany(e.target.value)} />
               <Input label="근무 기간" placeholder="예: 2023.01 - 2024.06" value={careerPeriod} onChange={(e) => setCareerPeriod(e.target.value)} />
@@ -287,17 +288,11 @@ export default function WorkerProfilePage() {
                 <FilterChips options={REGIONS} selected={selectedRegions} onChange={setSelectedRegions} />
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" fullWidth onClick={() => setStep(1)}>이전</Button>
-              <Button fullWidth onClick={() => setStep(3)}>다음</Button>
-            </div>
           </Card>
-        )}
 
-        {/* Step 3: 자격증 */}
-        {step === 3 && (
+          {/* 자격증 */}
           <Card padding="lg">
-            <h2 className="font-heading text-xl font-semibold mb-6">자격증</h2>
+            <h2 className="font-heading text-lg font-semibold mb-4">자격증</h2>
             <div className="flex flex-col gap-5">
               {certs.map((cert, i) => (
                 <div key={i} className="flex flex-col gap-3 p-3 bg-muted/30 rounded-xl relative">
@@ -318,38 +313,19 @@ export default function WorkerProfilePage() {
                 + 자격증 추가
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2">자격증이 없으면 비워두고 완료해도 됩니다</p>
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" fullWidth onClick={() => setStep(2)}>이전</Button>
-              <Button fullWidth onClick={handleComplete} disabled={saving}>
-                {saving ? "저장 중..." : "완료"}
-              </Button>
-            </div>
+            <p className="text-xs text-gray-400 mt-2">자격증이 없으면 비워두셔도 됩니다</p>
           </Card>
-        )}
 
-        {/* Step 4: 완료 */}
-        {step === 4 && (
-          <Card padding="lg">
-            <div className="text-center py-8">
-              <span className="text-6xl block mb-4">🎉</span>
-              <h2 className="font-heading text-2xl font-bold text-sage-dark mb-2">프로필 저장 완료!</h2>
-              {completion && (
-                <p className="text-lg font-semibold text-sage mb-2">
-                  프로필 완성도: {completion.percentage}%
-                </p>
-              )}
-              <p className="text-gray-500 mb-6">
-                {completion && completion.percentage < 100
-                  ? "부족한 항목을 채우면 더 많은 기회를 얻을 수 있어요"
-                  : "이제 일자리를 찾아볼 수 있습니다"}
-              </p>
-              <Link href="/dashboard/worker">
-                <Button size="lg">대시보드로 이동</Button>
-              </Link>
-            </div>
-          </Card>
-        )}
+          {/* 저장 버튼 */}
+          <Button
+            fullWidth
+            size="lg"
+            onClick={handleSave}
+            disabled={saving || !name.trim()}
+          >
+            {saving ? "저장 중..." : "프로필 저장"}
+          </Button>
+        </div>
       </div>
     </div>
   );
