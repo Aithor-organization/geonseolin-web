@@ -121,6 +121,11 @@ export const settingsSchema = z.object({
   chat_enabled: z.boolean().optional(),
   profile_public: z.boolean().optional(),
   location_enabled: z.boolean().optional(),
+  ai_matching_enabled: z.boolean().optional(),
+  matching_min_score: z.number().int().min(0).max(100).optional(),
+  matching_max_results: z.number().int().min(1).max(20).optional(),
+  matching_preferred_locations: z.array(z.string()).optional(),
+  matching_preferred_types: z.array(z.string()).optional(),
 });
 
 // 쿼리 파라미터

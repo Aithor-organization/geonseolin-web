@@ -24,6 +24,26 @@ export async function GET(req: NextRequest) {
 
   const type = req.nextUrl.searchParams.get("type");
 
+  // AI 매칭 설정 확인
+  const { data: userSettings } = await supabase
+    .from("user_settings")
+    .select("ai_matching_enabled, matching_min_score, matching_max_results, matching_preferred_locations, matching_preferred_types")
+    .eq("user_id", user!.id)
+    .single();
+
+  const aiEnabled = userSettings?.ai_matching_enabled ?? true;
+  const minScore = userSettings?.matching_min_score ?? 50;
+  const maxResults = userSettings?.matching_max_results ?? 5;
+  const preferredLocations = (userSettings?.matching_preferred_locations ?? []) as string[];
+  const preferredTypes = (userSettings?.matching_preferred_types ?? []) as string[];
+
+  if (!aiEnabled) {
+    return NextResponse.json(
+      { error: "AI 매칭이 비활성화되어 있습니다. 설정에서 활성화해주세요.", disabled: true },
+      { status: 403 }
+    );
+  }
+
   // ─── 기술자 → 추천 공고 ───
   if (type === "jobs") {
     const { data: profile } = await supabase
@@ -81,6 +101,18 @@ export async function GET(req: NextRequest) {
       jobQuery = jobQuery.or(orFilters.join(","));
     }
 
+    // 사용자 선호 지역 필터
+    if (preferredLocations.length > 0) {
+      const locFilters = preferredLocations.map((l) => `location.ilike.%${sanitize(l)}%`);
+      jobQuery = jobQuery.or(locFilters.join(","));
+    }
+
+    // 사용자 선호 공종 필터
+    if (preferredTypes.length > 0) {
+      const typeFilters = preferredTypes.map((t) => `type.ilike.%${sanitize(t)}%`);
+      jobQuery = jobQuery.or(typeFilters.join(","));
+    }
+
     const { data: jobs } = await jobQuery;
 
     const workerData: WorkerForMatching = {
@@ -106,7 +138,11 @@ export async function GET(req: NextRequest) {
       requirements: j.requirements,
     }));
 
-    const matches = await matchJobsForWorker(workerData, jobList);
+    const rawMatches = await matchJobsForWorker(workerData, jobList);
+    // 사용자 설정에 따라 최소 점수 필터 + 최대 결과 수 제한
+    const matches = rawMatches
+      .filter((m: { score: number }) => m.score >= minScore)
+      .slice(0, maxResults);
     return NextResponse.json({ matches, total: matches.length });
   }
 
@@ -204,7 +240,10 @@ export async function GET(req: NextRequest) {
       bio: w.bio,
     }));
 
-    const matches = await matchWorkersForJob(jobData, workerList);
+    const rawMatches = await matchWorkersForJob(jobData, workerList);
+    const matches = rawMatches
+      .filter((m: { score: number }) => m.score >= minScore)
+      .slice(0, maxResults);
     return NextResponse.json({ matches, total: matches.length });
   }
 

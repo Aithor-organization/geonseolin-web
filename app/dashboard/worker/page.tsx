@@ -38,7 +38,7 @@ export default function WorkerDashboardPage() {
   const { completion } = useProfileCompletion();
   const { jobs, loading: jobsLoading } = useJobs({ limit: 3 });
   const { contracts: activeContracts, loading: contractsLoading } = useContracts("active");
-  const { matches: aiMatches, loading: matchLoading, error: matchError, fetchMatches } = useJobMatching();
+  const { matches: aiMatches, loading: matchLoading, error: matchError, disabled: matchDisabled, fetchMatches } = useJobMatching();
 
   if (authLoading || statsLoading) {
     return (
@@ -124,10 +124,18 @@ export default function WorkerDashboardPage() {
               {matchLoading ? "분석 중..." : "AI 매칭 시작"}
             </button>
           </div>
-          {matchError && (
+          {matchDisabled && (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500 mb-2">AI 매칭이 비활성화되어 있습니다</p>
+              <Link href="/settings/ai-matching" className="text-sm text-sage font-medium hover:underline">
+                설정에서 활성화하기 →
+              </Link>
+            </div>
+          )}
+          {matchError && !matchDisabled && (
             <p className="text-xs text-terracotta mb-2">{matchError}</p>
           )}
-          {aiMatches.length === 0 && !matchLoading && !matchError && (
+          {aiMatches.length === 0 && !matchLoading && !matchError && !matchDisabled && (
             <p className="text-center py-4 text-gray-400 text-sm">
               &quot;AI 매칭 시작&quot; 버튼을 눌러 맞춤 공고를 추천받으세요
             </p>

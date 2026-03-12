@@ -9,6 +9,11 @@ interface Settings {
   chat_enabled: boolean;
   profile_public: boolean;
   location_enabled: boolean;
+  ai_matching_enabled: boolean;
+  matching_min_score: number;
+  matching_max_results: number;
+  matching_preferred_locations: string[];
+  matching_preferred_types: string[];
 }
 
 const defaultSettings: Settings = {
@@ -17,6 +22,11 @@ const defaultSettings: Settings = {
   chat_enabled: true,
   profile_public: true,
   location_enabled: false,
+  ai_matching_enabled: true,
+  matching_min_score: 50,
+  matching_max_results: 5,
+  matching_preferred_locations: [],
+  matching_preferred_types: [],
 };
 
 export function useSettings() {

@@ -387,6 +387,11 @@ export interface Database {
           chat_enabled: boolean;
           profile_public: boolean;
           location_enabled: boolean;
+          ai_matching_enabled: boolean;
+          matching_min_score: number;
+          matching_max_results: number;
+          matching_preferred_locations: string[];
+          matching_preferred_types: string[];
         };
         Insert: {
           user_id: string;
@@ -395,6 +400,11 @@ export interface Database {
           chat_enabled?: boolean;
           profile_public?: boolean;
           location_enabled?: boolean;
+          ai_matching_enabled?: boolean;
+          matching_min_score?: number;
+          matching_max_results?: number;
+          matching_preferred_locations?: string[];
+          matching_preferred_types?: string[];
         };
         Update: {
           push_enabled?: boolean;
@@ -402,6 +412,11 @@ export interface Database {
           chat_enabled?: boolean;
           profile_public?: boolean;
           location_enabled?: boolean;
+          ai_matching_enabled?: boolean;
+          matching_min_score?: number;
+          matching_max_results?: number;
+          matching_preferred_locations?: string[];
+          matching_preferred_types?: string[];
         };
         Relationships: [];
       };

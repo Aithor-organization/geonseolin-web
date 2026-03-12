@@ -61,7 +61,22 @@ export default function SettingsPage() {
         {/* AI 기능 설정 */}
         <Card className="mb-4">
           <h2 className="font-heading font-semibold text-dark mb-4">AI 기능</h2>
-          <div className="space-y-3">
+          <div className="space-y-1">
+            <Toggle
+              checked={settings.ai_matching_enabled}
+              onChange={(v) => update({ ai_matching_enabled: v })}
+              label="AI 자동 매칭"
+              description="AI가 나에게 맞는 공고/인력을 추천합니다"
+            />
+          </div>
+          <div className="space-y-3 mt-3 pt-3 border-t border-gray-100">
+            <Link href="/settings/ai-matching" className="flex items-center justify-between py-2 group">
+              <div>
+                <p className="text-sm font-medium text-dark group-hover:text-sage transition-colors">AI 매칭 세부 설정</p>
+                <p className="text-xs text-gray-500">최소 점수, 최대 결과 수, 선호 지역/공종</p>
+              </div>
+              <span className="text-gray-400 text-sm">→</span>
+            </Link>
             {profile?.role === "worker" && (
               <Link href="/settings/auto-apply" className="flex items-center justify-between py-2 group">
                 <div>

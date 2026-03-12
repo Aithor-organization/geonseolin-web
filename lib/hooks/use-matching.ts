@@ -20,14 +20,19 @@ export function useJobMatching() {
   const [matches, setMatches] = useState<JobMatch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [disabled, setDisabled] = useState(false);
 
   const fetchMatches = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setDisabled(false);
     try {
       const res = await fetch("/api/matching?type=jobs");
       if (!res.ok) {
         const data = await res.json();
+        if (data.disabled) {
+          setDisabled(true);
+        }
         setError(data.error ?? "매칭 실패");
         return;
       }
@@ -40,7 +45,7 @@ export function useJobMatching() {
     }
   }, []);
 
-  return { matches, loading, error, fetchMatches };
+  return { matches, loading, error, disabled, fetchMatches };
 }
 
 // 기업용: AI 추천 인력

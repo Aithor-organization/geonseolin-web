@@ -21,6 +21,11 @@ export async function GET() {
     chat_enabled: true,
     profile_public: true,
     location_enabled: false,
+    ai_matching_enabled: true,
+    matching_min_score: 50,
+    matching_max_results: 5,
+    matching_preferred_locations: [],
+    matching_preferred_types: [],
   });
 }
 
