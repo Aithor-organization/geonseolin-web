@@ -52,6 +52,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
+  // 공고 상태 확인 (마감 공고 지원 차단)
+  const { data: jobData } = await supabase.from("jobs").select("status, deadline").eq("id", id).single();
+  if (!jobData) {
+    return NextResponse.json({ error: "존재하지 않는 공고입니다" }, { status: 404 });
+  }
+  const isJobClosed = jobData.status === "closed" || (jobData.deadline && new Date(jobData.deadline) < new Date());
+  if (isJobClosed) {
+    return NextResponse.json({ error: "마감된 공고에는 지원할 수 없습니다" }, { status: 403 });
+  }
+
   const body = await req.json();
   const parsed = applicationSchema.safeParse({ ...body, job_id: id });
   if (!parsed.success) {

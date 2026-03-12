@@ -38,6 +38,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   }
 
   const isCompany = profile?.role === "company";
+  const isClosed = job.status === "closed" || (job.deadline && new Date(job.deadline) < new Date());
 
   return (
     <div className="px-5 py-6 bg-parchment min-h-screen">
@@ -46,11 +47,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <span>←</span> 뒤로
         </button>
 
-        <div className="bg-sage/10 rounded-2xl p-6 mb-6">
+        <div className={`${isClosed ? "bg-gray-100" : "bg-sage/10"} rounded-2xl p-6 mb-6`}>
           <div className="flex items-start gap-4">
             <span className="text-5xl">🏗️</span>
             <div>
-              <h1 className="font-heading text-xl font-bold text-dark">{job.title}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-heading text-xl font-bold text-dark">{job.title}</h1>
+                {isClosed && <Badge variant="muted">마감</Badge>}
+              </div>
               <p className="text-sm text-gray-500 mt-1">{job.company_profiles?.company_name ?? ""}</p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {job.location && <Badge variant="sage">{job.location}</Badge>}
@@ -102,6 +106,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
+        {isClosed && !isCompany && (
+          <div className="mb-4 p-3 bg-gray-100 text-gray-500 text-sm rounded-xl text-center">
+            이 공고는 마감되었습니다. 내용만 확인할 수 있습니다.
+          </div>
+        )}
+
         {isCompany ? (
           <div className="flex gap-3">
             <Link href={`/jobs/${id}/applicants`} className="flex-1">
@@ -111,6 +121,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               <Button fullWidth size="lg">공고 수정</Button>
             </Link>
           </div>
+        ) : isClosed ? (
+          <Link href="/jobs" className="block">
+            <Button variant="outline" fullWidth size="lg">다른 공고 보기</Button>
+          </Link>
         ) : (
           <div className="flex gap-3">
             <Link href="/chat" className="flex-1">
