@@ -80,8 +80,24 @@ export async function POST() {
   await supabase.from("profiles").delete().in("id", oldIds);
   results.push("기존 고아 데이터 정리 완료");
 
+  // 전체 유저 목록을 한 번만 조회 (반복 호출 방지)
+  const { data: allUsersData } = await supabase.auth.admin.listUsers();
+  const existingUsers = allUsersData?.users ?? [];
+
   // 2. 기술자 데모 계정 생성
   for (const w of DEMO_WORKERS) {
+    const existing = existingUsers.find((u) => u.email === w.email);
+
+    if (existing) {
+      await supabase.auth.admin.updateUserById(existing.id, {
+        password: "demo1234",
+        user_metadata: { name: w.name, role: "worker" },
+      });
+      await setupWorkerProfile(supabase, existing.id, w);
+      results.push(`${w.email}: 기존 유저 업데이트 (${existing.id})`);
+      continue;
+    }
+
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: w.email,
       password: "demo1234",
@@ -90,17 +106,6 @@ export async function POST() {
     });
 
     if (createError) {
-      // 이미 존재하면 비밀번호 업데이트
-      if (createError.message.includes("already") || createError.message.includes("exists")) {
-        const { data: users } = await supabase.auth.admin.listUsers();
-        const existing = users?.users?.find((u) => u.email === w.email);
-        if (existing) {
-          await supabase.auth.admin.updateUserById(existing.id, { password: "demo1234" });
-          await setupWorkerProfile(supabase, existing.id, w);
-          results.push(`${w.email}: 기존 유저 업데이트 (${existing.id})`);
-          continue;
-        }
-      }
       results.push(`${w.email}: 생성 실패 - ${createError.message}`);
       continue;
     }
@@ -111,6 +116,18 @@ export async function POST() {
 
   // 3. 기업 데모 계정 생성
   for (const c of DEMO_COMPANIES) {
+    const existing = existingUsers.find((u) => u.email === c.email);
+
+    if (existing) {
+      await supabase.auth.admin.updateUserById(existing.id, {
+        password: "demo1234",
+        user_metadata: { name: c.name, role: "company" },
+      });
+      await setupCompanyProfile(supabase, existing.id, c);
+      results.push(`${c.email}: 기존 유저 업데이트 (${existing.id})`);
+      continue;
+    }
+
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: c.email,
       password: "demo1234",
@@ -119,16 +136,6 @@ export async function POST() {
     });
 
     if (createError) {
-      if (createError.message.includes("already") || createError.message.includes("exists")) {
-        const { data: users } = await supabase.auth.admin.listUsers();
-        const existing = users?.users?.find((u) => u.email === c.email);
-        if (existing) {
-          await supabase.auth.admin.updateUserById(existing.id, { password: "demo1234" });
-          await setupCompanyProfile(supabase, existing.id, c);
-          results.push(`${c.email}: 기존 유저 업데이트 (${existing.id})`);
-          continue;
-        }
-      }
       results.push(`${c.email}: 생성 실패 - ${createError.message}`);
       continue;
     }
@@ -146,25 +153,20 @@ export async function POST() {
       user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
     });
 
-    if (adminErr) {
-      if (adminErr.message.includes("already") || adminErr.message.includes("exists")) {
-        const { data: users } = await supabase.auth.admin.listUsers();
-        const existing = users?.users?.find((u) => u.email === DEMO_ADMIN.email);
-        if (existing) {
-          await supabase.auth.admin.updateUserById(existing.id, {
-            password: DEMO_ADMIN.password,
-            user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
-          });
-          // admin 프로필도 upsert (profiles.role은 'worker'로 저장, user_metadata로 admin 판별)
-          await supabase.from("profiles").upsert(
-            { id: existing.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
-            { onConflict: "id" }
-          );
-          results.push(`${DEMO_ADMIN.email}: 기존 관리자 업데이트 (${existing.id})`);
-        }
-      } else {
-        results.push(`${DEMO_ADMIN.email}: 생성 실패 - ${adminErr.message}`);
-      }
+    const existingAdmin = existingUsers.find((u) => u.email === DEMO_ADMIN.email);
+
+    if (existingAdmin) {
+      await supabase.auth.admin.updateUserById(existingAdmin.id, {
+        password: DEMO_ADMIN.password,
+        user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
+      });
+      await supabase.from("profiles").upsert(
+        { id: existingAdmin.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
+        { onConflict: "id" }
+      );
+      results.push(`${DEMO_ADMIN.email}: 기존 관리자 업데이트 (${existingAdmin.id})`);
+    } else if (adminErr) {
+      results.push(`${DEMO_ADMIN.email}: 생성 실패 - ${adminErr.message}`);
     } else if (adminUser) {
       await supabase.from("profiles").upsert(
         { id: adminUser.user.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
