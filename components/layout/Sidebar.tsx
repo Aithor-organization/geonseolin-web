@@ -39,7 +39,8 @@ export default function Sidebar() {
   const { profile, loading, signOut } = useAuth();
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  if (isAuthPage || loading) return null;
+  const isAdminPage = pathname.startsWith("/admin");
+  if (isAuthPage || isAdminPage || loading) return null;
 
   const role = profile?.role ?? "worker";
   const navItems = role === "admin" ? adminNav : role === "company" ? companyNav : workerNav;

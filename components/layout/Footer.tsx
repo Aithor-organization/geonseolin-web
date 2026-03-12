@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Footer() {
+  const pathname = usePathname();
   const { profile } = useAuth();
   const role = profile?.role;
+
+  // admin 페이지에서는 Footer 숨김
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <footer className="hidden lg:block bg-white border-t border-muted mt-auto">

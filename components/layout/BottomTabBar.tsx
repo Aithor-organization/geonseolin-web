@@ -34,7 +34,8 @@ export default function BottomTabBar() {
   const { profile, loading } = useAuth();
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  if (isAuthPage || loading) return null;
+  const isAdminPage = pathname.startsWith("/admin");
+  if (isAuthPage || isAdminPage || loading) return null;
 
   const role = profile?.role ?? "worker";
   const tabs = role === "admin" ? adminTabs : role === "company" ? companyTabs : workerTabs;
