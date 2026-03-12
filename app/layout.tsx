@@ -5,6 +5,7 @@ import BottomTabBar from "@/components/layout/BottomTabBar";
 import Sidebar from "@/components/layout/Sidebar";
 import Footer from "@/components/layout/Footer";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import HelpChatbot from "@/components/HelpChatbot";
 
 export const metadata: Metadata = {
   title: "건설人 - 건설 인력 매칭 플랫폼",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <BottomTabBar />
+          <HelpChatbot />
         </AuthProvider>
       </body>
     </html>

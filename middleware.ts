@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const publicRoutes = ["/login", "/signup", "/api/auth/callback", "/forgot-password", "/reset-password", "/verify-email", "/api/setup-demo", "/support", "/terms", "/privacy"];
+const publicRoutes = ["/login", "/signup", "/api/auth/callback", "/forgot-password", "/reset-password", "/verify-email", "/api/setup-demo", "/api/help-chat", "/support", "/terms", "/privacy"];
 const authRoutes = ["/login", "/signup"];
 // 인증은 필요하지만 프로필은 필요 없는 라우트
 const noProfileRoutes = ["/onboarding"];
