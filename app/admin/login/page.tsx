@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminLoginPage() {
-  const { signIn, user, profile, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,19 +26,32 @@ export default function AdminLoginPage() {
     setError("");
     setSubmitting(true);
 
-    const result = await signIn(email, password);
-    if (result.error) {
-      setError(result.error);
-      setSubmitting(false);
-      return;
-    }
+    try {
+      // API 라우트를 통해 로그인 (brute force 보호 + 서버 검증)
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    // signIn 성공 후 AuthContext가 프로필을 로드하면
-    // admin 여부에 따라 리다이렉트됨 (middleware가 처리)
-    // 약간의 지연 후 확인
-    setTimeout(() => {
+      const data = await res.json();
+
+      if (!res.ok) {
+        // API가 반환하는 에러 메시지 표시
+        const errMsg = typeof data.error === "string"
+          ? data.error
+          : "로그인에 실패했습니다.";
+        setError(errMsg);
+        setSubmitting(false);
+        return;
+      }
+
+      // 로그인 성공 → 전체 페이지 리로드로 AuthContext 재초기화
       window.location.href = "/admin";
-    }, 500);
+    } catch {
+      setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      setSubmitting(false);
+    }
   };
 
   return (
