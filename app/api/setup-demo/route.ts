@@ -11,6 +11,8 @@ function getAdminClient() {
   );
 }
 
+type AdminClient = ReturnType<typeof getAdminClient>;
+
 interface DemoWorker {
   email: string;
   name: string;
@@ -53,14 +55,94 @@ const DEMO_COMPANIES: DemoCompany[] = [
   { email: "company4@demo.com", name: "서울플랜트", company_name: "서울플랜트", biz_number: "456-78-90123", ceo: "최서울", industry: "설비건설", employees: "200명", address: "경기 화성시 동탄대로 101", description: "대형 플랜트/공장 설비 시공 전문. ISO 14001 인증." },
 ];
 
-// 관리자 데모 계정
 const DEMO_ADMIN = { email: "admin@demo.com", name: "관리자", password: "demo1234" };
+
+// auth 유저 생성/조회 헬퍼 - 여러 방법을 시도
+async function ensureAuthUser(
+  supabase: AdminClient,
+  email: string,
+  password: string,
+  metadata: Record<string, string>,
+  existingUsers: { id: string; email?: string }[]
+): Promise<{ id: string; method: string } | { error: string }> {
+  // 1차: 이미 존재하는지 확인
+  const existing = existingUsers.find((u) => u.email === email);
+  if (existing) {
+    await supabase.auth.admin.updateUserById(existing.id, {
+      password,
+      user_metadata: metadata,
+    });
+    return { id: existing.id, method: "기존 유저 업데이트" };
+  }
+
+  // 2차: admin.createUser 시도
+  const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: metadata,
+  });
+
+  if (created?.user) {
+    return { id: created.user.id, method: "새 유저 생성" };
+  }
+
+  // 3차: signUp 시도 (GoTrue의 다른 코드 경로 사용)
+  const { data: signedUp, error: signUpErr } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: metadata },
+  });
+
+  if (signedUp?.user) {
+    // signUp으로 생성된 유저 이메일 확인 처리
+    await supabase.auth.admin.updateUserById(signedUp.user.id, {
+      email_confirm: true,
+      user_metadata: metadata,
+    });
+    return { id: signedUp.user.id, method: "signUp 경로로 생성" };
+  }
+
+  // 4차: 직접 GoTrue REST API 호출
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    const res = await fetch(`${url}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceKey!,
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: metadata,
+      }),
+    });
+
+    if (res.ok) {
+      const user = await res.json();
+      return { id: user.id, method: "REST API로 생성" };
+    }
+
+    const errBody = await res.text();
+    return {
+      error: `모든 방법 실패 - createUser: ${createErr?.message}, signUp: ${signUpErr?.message}, REST: ${errBody}`,
+    };
+  } catch (fetchErr) {
+    return {
+      error: `모든 방법 실패 - createUser: ${createErr?.message}, signUp: ${signUpErr?.message}, fetch: ${fetchErr}`,
+    };
+  }
+}
 
 export async function POST() {
   const supabase = getAdminClient();
   const results: string[] = [];
 
-  // 1. 기존 고아 프로필 정리 (auth.users 없이 profiles만 있는 데이터)
+  // 1. 기존 고아 프로필 정리
   const oldIds = [
     "00000000-0000-0000-0000-000000000001",
     "00000000-0000-0000-0000-000000000002",
@@ -74,109 +156,69 @@ export async function POST() {
     "00000000-0000-0000-0000-000000000014",
   ];
 
-  // 관련 하위 테이블 먼저 삭제 (FK 제약)
   await supabase.from("worker_profiles").delete().in("id", oldIds);
   await supabase.from("company_profiles").delete().in("id", oldIds);
   await supabase.from("profiles").delete().in("id", oldIds);
   results.push("기존 고아 데이터 정리 완료");
 
-  // 전체 유저 목록을 한 번만 조회 (반복 호출 방지)
-  const { data: allUsersData } = await supabase.auth.admin.listUsers();
+  // 전체 유저 목록 한 번만 조회
+  const { data: allUsersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   const existingUsers = allUsersData?.users ?? [];
 
   // 2. 기술자 데모 계정 생성
   for (const w of DEMO_WORKERS) {
-    const existing = existingUsers.find((u) => u.email === w.email);
+    const result = await ensureAuthUser(
+      supabase, w.email, "demo1234",
+      { name: w.name, role: "worker" },
+      existingUsers
+    );
 
-    if (existing) {
-      await supabase.auth.admin.updateUserById(existing.id, {
-        password: "demo1234",
-        user_metadata: { name: w.name, role: "worker" },
-      });
-      await setupWorkerProfile(supabase, existing.id, w);
-      results.push(`${w.email}: 기존 유저 업데이트 (${existing.id})`);
+    if ("error" in result) {
+      results.push(`${w.email}: ${result.error}`);
       continue;
     }
 
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-      email: w.email,
-      password: "demo1234",
-      email_confirm: true,
-      user_metadata: { name: w.name, role: "worker" },
-    });
-
-    if (createError) {
-      results.push(`${w.email}: 생성 실패 - ${createError.message}`);
-      continue;
-    }
-
-    await setupWorkerProfile(supabase, newUser.user.id, w);
-    results.push(`${w.email}: 새 유저 생성 (${newUser.user.id})`);
+    await setupWorkerProfile(supabase, result.id, w);
+    results.push(`${w.email}: ${result.method} (${result.id})`);
   }
 
   // 3. 기업 데모 계정 생성
   for (const c of DEMO_COMPANIES) {
-    const existing = existingUsers.find((u) => u.email === c.email);
+    const result = await ensureAuthUser(
+      supabase, c.email, "demo1234",
+      { name: c.name, role: "company" },
+      existingUsers
+    );
 
-    if (existing) {
-      await supabase.auth.admin.updateUserById(existing.id, {
-        password: "demo1234",
-        user_metadata: { name: c.name, role: "company" },
-      });
-      await setupCompanyProfile(supabase, existing.id, c);
-      results.push(`${c.email}: 기존 유저 업데이트 (${existing.id})`);
+    if ("error" in result) {
+      results.push(`${c.email}: ${result.error}`);
       continue;
     }
 
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-      email: c.email,
-      password: "demo1234",
-      email_confirm: true,
-      user_metadata: { name: c.name, role: "company" },
-    });
-
-    if (createError) {
-      results.push(`${c.email}: 생성 실패 - ${createError.message}`);
-      continue;
-    }
-
-    await setupCompanyProfile(supabase, newUser.user.id, c);
-    results.push(`${c.email}: 새 유저 생성 (${newUser.user.id})`);
+    await setupCompanyProfile(supabase, result.id, c);
+    results.push(`${c.email}: ${result.method} (${result.id})`);
   }
 
   // 4. 관리자 데모 계정 생성
   {
-    const { data: adminUser, error: adminErr } = await supabase.auth.admin.createUser({
-      email: DEMO_ADMIN.email,
-      password: DEMO_ADMIN.password,
-      email_confirm: true,
-      user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
-    });
+    const result = await ensureAuthUser(
+      supabase, DEMO_ADMIN.email, DEMO_ADMIN.password,
+      { name: DEMO_ADMIN.name, role: "admin" },
+      existingUsers
+    );
 
-    const existingAdmin = existingUsers.find((u) => u.email === DEMO_ADMIN.email);
-
-    if (existingAdmin) {
-      await supabase.auth.admin.updateUserById(existingAdmin.id, {
-        password: DEMO_ADMIN.password,
-        user_metadata: { name: DEMO_ADMIN.name, role: "admin" },
-      });
+    if ("error" in result) {
+      results.push(`${DEMO_ADMIN.email}: ${result.error}`);
+    } else {
       await supabase.from("profiles").upsert(
-        { id: existingAdmin.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
+        { id: result.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
         { onConflict: "id" }
       );
-      results.push(`${DEMO_ADMIN.email}: 기존 관리자 업데이트 (${existingAdmin.id})`);
-    } else if (adminErr) {
-      results.push(`${DEMO_ADMIN.email}: 생성 실패 - ${adminErr.message}`);
-    } else if (adminUser) {
-      await supabase.from("profiles").upsert(
-        { id: adminUser.user.id, role: "worker" as const, name: DEMO_ADMIN.name, email: DEMO_ADMIN.email },
-        { onConflict: "id" }
-      );
-      results.push(`${DEMO_ADMIN.email}: 관리자 생성 (${adminUser.user.id})`);
+      results.push(`${DEMO_ADMIN.email}: ${result.method} (${result.id})`);
     }
   }
 
-  // 5. 데모 공고 생성 (여러 기업)
+  // 5. 데모 공고 생성
   const companyEmails = ["company1@demo.com", "company2@demo.com", "company3@demo.com", "company4@demo.com"];
   const companyIds: Record<string, string> = {};
 
@@ -195,43 +237,34 @@ export async function POST() {
   const pastDate = (days: number) => new Date(now.getTime() - days * 86400000).toISOString();
 
   const demoJobs = [
-    // 한양건설 - 공고중
     { company_id: companyIds["company1@demo.com"], title: "강남 오피스텔 배관 교체 공사", location: "서울 강남구", salary: "일 35만원", type: "단기 (2주)", description: "강남구 소재 오피스텔 30세대 노후 배관 전면 교체 작업입니다. PVC/동파이프 교체 경험 필수.", requirements: ["배관공 경력 5년 이상","PVC 배관 시공 경험","자격증 소지자 우대"], benefits: ["중식 제공","주차 가능","안전장비 지급"], applicant_count: 12, status: "active" as const, deadline: futureDate(14) },
     { company_id: companyIds["company1@demo.com"], title: "서초 아파트 난방 배관 공사", location: "서울 서초구", salary: "일 40만원", type: "단기 (1주)", description: "서초구 대단지 아파트 난방 배관 교체. 동절기 전 긴급 시공.", requirements: ["난방배관 경력 3년 이상","보일러 배관 경험","자격증 우대"], benefits: ["식대 제공","교통비 지원"], applicant_count: 5, status: "active" as const, deadline: futureDate(7) },
-    // 한양건설 - 마감
     { company_id: companyIds["company1@demo.com"], title: "잠실 주상복합 배관 시공", location: "서울 송파구", salary: "일 38만원", type: "장기 (3개월)", description: "잠실 신축 주상복합 배관 시공 완료. 감사합니다.", requirements: ["배관공 경력 7년 이상","대형 현장 경험"], benefits: ["4대보험","중식제공","기숙사"], applicant_count: 28, status: "closed" as const, deadline: pastDate(10) },
-
-    // 테크파크건설 - 공고중
     { company_id: companyIds["company2@demo.com"], title: "판교 IT센터 전기 공사", location: "경기 성남시", salary: "일 45만원", type: "장기 (2개월)", description: "판교 테크노밸리 IT센터 신축 전기 내선 공사. 스마트빌딩 자동화 설비 포함.", requirements: ["전기기사 자격증 필수","내선공사 5년 이상","스마트빌딩 경험 우대"], benefits: ["4대보험","중식 제공","통근버스","성과급"], applicant_count: 8, status: "active" as const, deadline: futureDate(21) },
-    // 테크파크건설 - 마감
     { company_id: companyIds["company2@demo.com"], title: "분당 오피스 LED 조명 교체", location: "경기 성남시", salary: "일 32만원", type: "단기 (3일)", description: "분당 오피스빌딩 전층 LED 조명 교체 완료.", requirements: ["조명설치 경험 2년 이상"], benefits: ["식대 제공"], applicant_count: 15, status: "closed" as const, deadline: pastDate(5) },
-
-    // 대한인테리어 - 공고중
     { company_id: companyIds["company3@demo.com"], title: "홍대 카페 인테리어 도장 공사", location: "서울 마포구", salary: "일 30만원", type: "단기 (5일)", description: "홍대 신규 카페 매장 내부 도장 공사. 친환경 도료 사용 필수. 디자인 시안에 맞춘 색상 시공.", requirements: ["도장 경력 3년 이상","실내 도장 경험","친환경 도료 경험 우대"], benefits: ["식대 제공","교통비 지원"], applicant_count: 3, status: "active" as const, deadline: futureDate(5) },
     { company_id: companyIds["company3@demo.com"], title: "강남 고급 주택 타일 시공", location: "서울 강남구", salary: "일 42만원", type: "단기 (1주)", description: "강남 단독주택 욕실 3곳 + 주방 타일 전면 시공. 대리석/포세린 타일.", requirements: ["타일 시공 5년 이상","대리석 경험 필수","포세린 타일 경험 우대"], benefits: ["재료비 별도","중식 제공","주차 가능"], applicant_count: 7, status: "active" as const, deadline: futureDate(10) },
-    // 대한인테리어 - 마감
     { company_id: companyIds["company3@demo.com"], title: "성수동 사무실 리모델링", location: "서울 성동구", salary: "일 35만원", type: "단기 (2주)", description: "성수동 사무실 리모델링 공사 완료.", requirements: ["인테리어 경력 5년 이상","다기능 시공 가능자"], benefits: ["4대보험","식대"], applicant_count: 20, status: "closed" as const, deadline: pastDate(15) },
-
-    // 서울플랜트 - 공고중
     { company_id: companyIds["company4@demo.com"], title: "화성 반도체 공장 용접 공사", location: "경기 화성시", salary: "일 55만원", type: "장기 (6개월)", description: "화성 반도체 공장 배관 용접 공사. TIG/특수강 용접 기술 필수. 클린룸 내 작업.", requirements: ["용접기능사 이상","TIG 용접 경력 10년 이상","클린룸 경험 우대","산업안전교육 이수"], benefits: ["4대보험","기숙사 제공","중식/석식","통근버스","연장근무수당"], applicant_count: 4, status: "active" as const, deadline: futureDate(30) },
     { company_id: companyIds["company4@demo.com"], title: "동탄 물류센터 철골 공사", location: "경기 화성시", salary: "일 48만원", type: "장기 (4개월)", description: "동탄 대형 물류센터 철골 구조물 시공. 고소 작업 포함.", requirements: ["철근공 경력 5년 이상","고소작업 경험","안전관리 자격증 우대"], benefits: ["4대보험","기숙사","중식 제공","안전장비 지급"], applicant_count: 9, status: "active" as const, deadline: futureDate(20) },
-    // 서울플랜트 - 마감
     { company_id: companyIds["company4@demo.com"], title: "인천 공장 설비 배관 공사", location: "인천 남동구", salary: "일 50만원", type: "장기 (3개월)", description: "인천 산업단지 공장 설비 배관 공사 완료.", requirements: ["배관 용접 경력 8년 이상","산업설비 경험"], benefits: ["4대보험","기숙사","통근버스"], applicant_count: 32, status: "closed" as const, deadline: pastDate(20) },
-  ].filter((j) => j.company_id); // 기업이 생성되지 않은 경우 필터링
+  ].filter((j) => j.company_id);
 
   if (demoJobs.length > 0) {
-    await supabase.from("jobs").insert(demoJobs);
-    results.push(`데모 공고 ${demoJobs.length}건 생성 완료 (공고중 ${demoJobs.filter(j => j.status === "active").length}건, 마감 ${demoJobs.filter(j => j.status === "closed").length}건)`);
+    const { error: jobErr } = await supabase.from("jobs").insert(demoJobs);
+    if (jobErr) {
+      results.push(`공고 생성 실패: ${jobErr.message}`);
+    } else {
+      results.push(`데모 공고 ${demoJobs.length}건 생성 완료 (공고중 ${demoJobs.filter(j => j.status === "active").length}건, 마감 ${demoJobs.filter(j => j.status === "closed").length}건)`);
+    }
+  } else {
+    results.push("기업 계정이 없어 공고를 생성하지 못했습니다");
   }
 
   return NextResponse.json({ success: true, results });
 }
 
-async function setupWorkerProfile(
-  supabase: ReturnType<typeof createClient<Database>>,
-  userId: string,
-  w: DemoWorker
-) {
+async function setupWorkerProfile(supabase: AdminClient, userId: string, w: DemoWorker) {
   await supabase.from("profiles").upsert(
     { id: userId, role: "worker" as const, name: w.name, email: w.email },
     { onConflict: "id" }
@@ -254,11 +287,7 @@ async function setupWorkerProfile(
   );
 }
 
-async function setupCompanyProfile(
-  supabase: ReturnType<typeof createClient<Database>>,
-  userId: string,
-  c: DemoCompany
-) {
+async function setupCompanyProfile(supabase: AdminClient, userId: string, c: DemoCompany) {
   await supabase.from("profiles").upsert(
     { id: userId, role: "company" as const, name: c.name, email: c.email },
     { onConflict: "id" }
