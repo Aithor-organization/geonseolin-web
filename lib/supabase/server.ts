@@ -6,9 +6,12 @@ import type { Database } from "./types";
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
+
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -30,18 +33,21 @@ export async function getSupabaseServerClient() {
 
 // Admin 클라이언트 (쿠키 불필요, 사용자 삭제 등 관리 작업용)
 export function getSupabaseAdmin() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key";
+
+  return createClient<Database>(url, serviceKey);
 }
 
 export async function getSupabaseServiceClient() {
   const cookieStore = await cookies();
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key";
+
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    url,
+    serviceKey,
     {
       cookies: {
         getAll() {
