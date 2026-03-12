@@ -22,12 +22,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // profiles.role 또는 user_metadata.role로 admin 판별
   const isAdmin =
     profile?.role === "admin" || user?.user_metadata?.role === "admin";
+  const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
-      router.push("/dashboard/worker");
+    if (!loading && !isAdmin && !isLoginPage) {
+      router.push("/admin/login");
     }
-  }, [loading, isAdmin, router]);
+  }, [loading, isAdmin, isLoginPage, router]);
+
+  // 관리자 로그인 페이지는 레이아웃 없이 렌더링
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
